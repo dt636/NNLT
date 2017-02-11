@@ -777,10 +777,16 @@ if filename ~= 0
         
         handles.presetDataBoolean = true;
         clearAllLabels(hObject,handles);
+        
+        %=======
+        handles.correct = -1;
+        handles.initialStepThroughComplete = false;
+        
         guidata(hObject,handles);
         
+        
         plotData(hObject,handles);
-    
+
 end
     
 function generateDatasetButton_Callback(hObject, eventdata, handles)
@@ -858,9 +864,16 @@ function generateDatasetButton_Callback(hObject, eventdata, handles)
     cla(handles.networkGraph);
     reset(handles.networkGraph);
     clearAllLabels(hObject,handles);
+   
+     %=======
+        handles.correct = -1;
+        handles.initialStepThroughComplete = false;
+        
     guidata(hObject,handles);
     
     plotData(hObject,handles);
+    
+   
     
 %CODE TAKEN FROM:
     % http://stackoverflow.com/questions/4882367/implementing-and-ploting-a-perceptron-in-matlab
