@@ -1,0 +1,1265 @@
+function varargout = perceptronLearningPage(varargin)
+% PERCEPTRONLEARNINGPAGE MATLAB code for perceptronLearningPage.fig
+%      PERCEPTRONLEARNINGPAGE, by itself, creates a new PERCEPTRONLEARNINGPAGE or raises the existing
+%      singleton*.
+%
+%      H = PERCEPTRONLEARNINGPAGE returns the handle to a new PERCEPTRONLEARNINGPAGE or the handle to
+%      the existing singleton*.
+%
+%      PERCEPTRONLEARNINGPAGE('CALLBACK',hObject,eventData,handles,...) calls the local
+%      function named CALLBACK in PERCEPTRONLEARNINGPAGE.M with the given input arguments.
+%
+%      PERCEPTRONLEARNINGPAGE('Property','Value',...) creates a new PERCEPTRONLEARNINGPAGE or raises the
+%      existing singleton*.  Starting from the left, property value pairs are
+%      applied to the GUI before perceptronLearningPage_OpeningFcn gets called.  An
+%      unrecognized property name or invalid value makes property application
+%      stop.  All inputs are passed to perceptronLearningPage_OpeningFcn via varargin.
+%
+%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
+%      instance to run (singleton)".
+%
+% See also: GUIDE, GUIDATA, GUIHANDLES
+
+% Edit the above text to modify the response to help perceptronLearningPage
+
+% Last Modified by GUIDE v2.5 05-Feb-2017 15:50:04
+
+% Begin initialization code - DO NOT EDIT
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+                   'gui_Singleton',  gui_Singleton, ...
+                   'gui_OpeningFcn', @perceptronLearningPage_OpeningFcn, ...
+                   'gui_OutputFcn',  @perceptronLearningPage_OutputFcn, ...
+                   'gui_LayoutFcn',  [] , ...
+                   'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+% End initialization code - DO NOT EDIT
+
+
+% --- Executes just before perceptronLearningPage is made visible.
+function perceptronLearningPage_OpeningFcn(hObject, eventdata, handles, varargin)
+% This function has no output args, see OutputFcn.
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+% varargin   command line arguments to perceptronLearningPage (see VARARGIN)
+
+% Choose default command line output for perceptronLearningPage
+handles.output = hObject;
+
+% Update handles structure
+guidata(hObject, handles);
+
+%Initialise the perceptron with hard-coded data
+setHardCodedData(handles);
+
+% make the colour selectors invisible to show they are not currently in use
+% create and initialise colour variables
+initialiseColour(handles);
+
+initialiseDatapointCreation(handles);
+
+%% set learningRateEdit to be invisible so user cannot edit it without
+%turning on the learning rate checkbox, and set learningRate 
+    set (handles.learningRateEdit,'Visible','off');
+
+%%
+
+%set the minimum starting position of the step slider to be 0
+set (handles.stepSlider,'min',0);
+
+if ~isfield(handles,'originalDataForReset')
+    handles.originalDataForReset = zeros;
+end
+
+if ~isfield(handles,'inputData')
+    handles.inputData = [];
+end
+
+if ~isfield(handles,'inputSize')
+    handles.inputSize = zeros;
+end
+
+if ~isfield(handles,'dataPresent')
+    handles.dataPresent = false;
+end
+
+if ~isfield(handles,'manualX1Input')
+    handles.manualX1Input = 0;
+end
+
+if ~isfield(handles,'manualX2Input')
+    handles.manualX2Input = 0;
+end
+
+if ~isfield(handles,'manualClassInput')
+    handles.manualClassInput = 0;
+end
+
+if ~isfield(handles,'presetDataBoolean')
+    handles.presetDataBoolean = false;
+end
+
+handles.numDatapointsToCycleThrough = 0;
+
+handles.maxIteration = 0;
+handles.currentIteration = 0;
+
+handles.correct = -1;
+
+handles.minBlockDatapoints = 0;
+handles.maxBlockDatapoints = 0;
+
+handles.initialStepThroughComplete = false;
+
+
+%handle for appending to handles.inputData in ManualDatapointCreationCompleteButton_Callback
+%resetting the data to include the users created datapoints 
+%as well as originally loaded or generated datapoints
+handles.createdDatapoints = [];
+
+%set (handles.networkGraph, 'HitTest','off');
+%set (handles.networkGraph,'ButtonDownFcn',{@networkGraphDatapointCreation});
+%set (gca, 'buttondownfcn',{@networkGraph_ButtonDownFcn,handles})
+
+
+guidata(hObject,handles);
+
+% UIWAIT makes perceptronLearningPage wait for user response (see UIRESUME)
+% uiwait(handles.plpf);
+
+% --- Outputs from this function are returned to the command line.
+function varargout = perceptronLearningPage_OutputFcn(hObject, eventdata, handles) 
+% varargout  cell array for returning output args (see VARARGOUT);
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Get default command line output from handles structure
+varargout{1} = handles.output;
+
+function setHardCodedData(handles)
+    set (handles.x1InputLabel,'String','0.1');
+    set (handles.x2InputLabel,'String','0.3');
+    set (handles.w0InputLabel,'String','0.3');
+    set (handles.w1InputLabel,'String','3.1');
+    set (handles.w2InputLabel,'String','0.5');
+    set (handles.desiredOutputLabel,'String','1');
+    set (handles.actualOutputLabel,'String','');
+    
+function initialiseColour(handles)
+    set (handles.notRunningColourChoice,'Visible','off');
+    set (handles.processingColourChoice,'Visible','off');
+    set (handles.completedColourChoice,'Visible','off');
+
+    set (handles.statusColourToggle,'String','Off');
+
+    set (handles.classAColourChoice,'Visible','off');
+    set (handles.classBColourChoice,'Visible','off');
+    set (handles.thresholdBoundaryColourChoice,'Visible','off');
+
+    set (handles.graphColourToggle,'String','Off');
+
+    global notRunningColour;
+    global greyColour;
+    greyColour = [.80 .80 .80];
+    notRunningColour = greyColour;
+
+    global processingColour;
+    processingColour = 'y';
+
+    global completedColour;
+    completedColour = 'g';
+
+    set (handles.weightedSumLabel,'BackgroundColor',notRunningColour);
+    
+function initialiseDatapointCreation(handles)
+    set (handles.datapointCreationToggle,'String','Off');
+    set (handles.datapointCreationClassButtonGroup,'Visible','Off');
+    set (handles.graphOrManualButtonGroup,'Visible','off');
+    set (handles.manualDatapointCreationPanel,'Visible','off');   
+
+function setWeightLabels(hObject,handles)
+    set (handles.w0InputLabel,'String',handles.weights(1));
+    set (handles.w1InputLabel,'String',handles.weights(2));
+    set (handles.w2InputLabel,'String',handles.weights(3));
+
+function setInputLabels(hObjects, handles, i)
+    set (handles.x1InputLabel,'String',handles.inputData(2,i));
+    set (handles.x2InputLabel,'String',handles.inputData(3,i)); 
+    
+function setOutputLabels(hObjects, handles, i)
+    set (handles.desiredOutputLabel,'String',handles.desiredOutput(i));
+    set (handles.actualOutputLabel,'String',handles.actualOutput(i));
+    
+function clearAllLabels(hObject,handles)
+    set (handles.w0InputLabel,'String','');
+    set (handles.w1InputLabel,'String','');
+    set (handles.w2InputLabel,'String','');
+    set (handles.x1InputLabel,'String','');
+    set (handles.x2InputLabel,'String','');
+    set (handles.weightedSumLabel,'String','');
+    set (handles.desiredOutputLabel,'String','');
+    set (handles.actualOutputLabel,'String','');
+
+function backToMainMenuButton_Callback(hObject, eventdata, handles)
+
+function helpButton_Callback(hObject, eventdata, handles)
+
+function playButton_Callback(hObject, eventdata, handles)
+
+global notRunningColour;
+global processingColour;
+global completedColour;
+
+%if no data has been entered then show an error message and exit the
+%playButton function
+if (handles.dataPresent == false)
+    msgbox('No data has been given. Please provide data.', 'Error: No data given', 'error');
+    
+elseif (handles.correct == 1)
+    msgbox('Data has been correctly classified. Please press "Reset Dataset" to restart the learning process.');
+
+    %if data has been entered, proceed
+elseif (handles.dataPresent == true)
+
+    %%  ask for a number of iterations/epochs/time stamps
+        title = 'Set maximum number of iterations:';
+        prompt = 'Set the maximum number of iterations / epochs / time stamps:';
+        default_ans = {'10'};
+        maxt = str2double(inputdlg(prompt,title,1,default_ans));
+        
+    %%  set background colours
+    %set the desired output to white to show its outcome hasn't been determined
+        set (handles.desiredOutputLabel,'BackgroundColor','w');
+    %set the perceptron colour to the processing colour to show the data is
+    %being processed
+        set (handles.weightedSumLabel,'BackgroundColor',processingColour);
+        
+    %%  wait and initialise correct and time
+    %wait for an arbitrary amount of time so the processing isn't almost instantaneous
+        pause(0.5);
+
+    %assume the data has not classified correctly
+        correct = -1; 
+    
+    %initialise a time variable to act as a counter for the number of
+    %epochs/iterations/time stamps
+        t=0;
+        
+    %%  set a hard-coded learning rate
+    %TO CODE: CAN BE DETERMINED BY THE USER LATER
+        if (get(handles.learningRateCheckbox,'Value')==1)
+            learningRate = str2double(get(handles.learningRateEdit,'String'));
+        elseif (get(handles.learningRateCheckbox,'Value')==0)
+            learningRate = 1;
+        end
+        
+%%
+    
+    %while the data hasn't been classified correctly and there is still
+    %time to compute the classification
+        while (correct == -1) && (t < maxt)
+
+            %% classify correctly and increment time
+            %assume the data has been classified correctly
+                correct = 1;
+            %increment the time variable
+                t = t + 1;
+            %%
+              
+            if (get(handles.stepToggle,'Value')== 1) 
+                
+               
+                    weightedSum = handles.weights' * handles.inputData;
+                    handles.actualOutput = sign(weightedSum);
+                    
+                    error = handles.desiredOutput - handles.actualOutput;
+
+                %what we want, what we get, what the difference is
+                    %[handles.desiredOutput; handles.actualOutput; error]
+
+                %% compare actual with desired, classify correct or not
+                %if any of the actual output is not the same as the desired output then
+                %it is incorrectly classified
+                if any(handles.actualOutput ~=handles.desiredOutput)
+                    correct = -1;
+                end
+                %%
+
+                %if any datapoint is incorrectly classified, adjust the weights
+                if correct == -1
+
+                    %for each datapoint, check if its actual output matches the desired
+                    %output. If not, adjust its weight accordingly.
+                    for i = 1:handles.inputSize
+                        %% select the currently considered point and highlight it
+                            %handles.inputData(1,i) is the +1 bias constant
+                            x1 = handles.inputData(2,i);
+                            x2 = handles.inputData(3,i);
+                            hold on;
+                            handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',10);
+                            guidata(hObject,handles);
+
+                        %% set the data on the GUI inputEdits and All Network Parameters
+                            setInputLabels(hObject,handles,i);
+                            setWeightLabels(hObject,handles)
+                            setOutputLabels(hObject, handles, i);
+                            set (handles.weightedSumLabel,'String', weightedSum(i));
+                        
+                        %%
+
+                        %if the handles.actualOutput is not the same as the desiredOutput then the weights must be changed
+                        if handles.actualOutput(1,i) ~= handles.desiredOutput(1,i)
+
+                            handles.weights = handles.weights + learningRate*error(i)*handles.inputData(:,i);
+
+                            %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
+
+                            %arbitrary pause to allow the user to see the change in
+                            %the threshold boundary as it moves around
+                            pause(0.001);
+                            displayThresholdBoundary(hObject, handles);
+
+                            %% show the weight changes on the GUI as they are processed
+                                setWeightLabels(hObject,handles);           
+                        end
+                        
+                        %after the current point has been considered, delete the current highlight
+                            delete(handles.highlightedPoint);
+                    end
+                end
+                
+            elseif (get(handles.sigmoidToggle,'Value')==1)
+                
+                    weightedSum = handles.weights' * handles.inputData;
+                        handles.actualOutput = 1 ./ (1 + exp(-weightedSum));
+                            error = handles.desiredOutput - handles.actualOutput;
+                            
+                            %reassign the actual output to be thresholded
+                            %once the error has been calculated
+                        handles.actualOutput = sign(1 ./ (1 + exp(-weightedSum)));
+                        
+                        %% compare actual with desired, classify correct or not
+                    %if any of the actual output is not the same as the desired output then
+                    %it is incorrectly classified
+                    if any(handles.actualOutput ~=handles.desiredOutput)
+                        correct = -1;
+                    end
+                    %%
+
+                    %if any datapoint is incorrectly classified, adjust the weights
+                    if correct == -1
+
+                        %for each datapoint, check if its actual output matches the desired
+                        %output. If not, adjust its weight accordingly.
+                        for i = 1:handles.inputSize
+                            %% select the currently considered point and highlight it
+                                %handles.inputData(1,i) is the +1 bias constant
+                                x1 = handles.inputData(2,i);
+                                x2 = handles.inputData(3,i);
+                                hold on;
+                                handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',10);
+                                guidata(hObject,handles);
+
+                            %% set the data on the GUI inputEdits and All Network Parameters
+                                setInputLabels(hObject,handles,i);
+                                setWeightLabels(hObject,handles)
+                                setOutputLabels(hObject, handles, i);
+                                set (handles.weightedSumLabel,'String', weightedSum(i));
+
+                            %%
+
+                            %if the handles.actualOutput is not the same as the desiredOutput then the weights must be changed
+                            if handles.actualOutput(1,i) ~= handles.desiredOutput(1,i)
+
+                                handles.weights = handles.weights + learningRate*error(i)*handles.inputData(:,i);
+
+                                %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
+
+                                %arbitrary pause to allow the user to see the change in
+                                %the threshold boundary as it moves around
+                                pause(0.001);
+                                displayThresholdBoundary(hObject, handles);
+
+                                %% show the weight changes on the GUI as they are processed
+                                    setWeightLabels(hObject,handles);           
+                            end
+
+                            %after the current point has been considered, delete the current highlight
+                                delete(handles.highlightedPoint);
+                        end
+                    end
+            else
+                %ERROR
+            end
+        end
+
+    pause(0.01);
+     displayThresholdBoundary(hObject, handles);
+     
+    %% change feedback colours to show the processing has completed
+        set (handles.desiredOutputLabel,'BackgroundColor',completedColour);
+        set (handles.weightedSumLabel,'BackgroundColor',notRunningColour);
+else
+    %ERROR
+end
+
+function displayThresholdBoundary(hObject, handles)
+
+global thresholdBoundary;
+%delete the current line so we can draw a new line
+delete(thresholdBoundary);
+
+%DRAW THE NEW LINE
+%======================================================
+%x1a and x1b are the minimum and maximum (respectively)
+%points on the x1 axis. The boundary line is defined
+%on the x1 axis as slightly smaller and bigger than x1a
+%and x1b
+    %min - 0.1 * min ==> min * (1 - 0.1) ==> min * 0.9
+    %max + 0.1 * max ==> max * (1 + 0.1) ==> max * 1.1
+    x1a = min(handles.inputData(2,:))* 0.9;
+    x1b = max(handles.inputData(2,:))* 1.1;
+
+%separate the weights for the next calculation
+    biasWeight = handles.weights(1);
+    x1Weight = handles.weights(2);
+    x2Weight = handles.weights(3);
+
+%the corresponding x2a and x2b points are calculated
+    x2a = (biasWeight*1 + x1Weight*x1a) / -x2Weight;
+    x2b = (biasWeight*1 + x1Weight*x1b) / -x2Weight;
+
+    %set (handles.networkGraph, 'XLim',[x1a x1b]);
+    %set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
+    
+%finally, draw the line on the axes
+    thresholdBoundary = plot([x1a; x1b], [x2a,x2b], 'k-', 'linewidth',0.5);
+    
+    guidata(hObject,handles);
+
+% 0 = w0 * 1 + w1 * x1 = w2 * x2, 
+%x2 = (1 – 1.3679 * x1)/ 0.9308
+%y=-W(1,1)/W(1,2)*x-B(1)/W(1,2);
+%y1 = ( (x2Weight*x2) + biasWeight*1) ./ -x1Weight;
+%y2 = ( (handles.weights(2)*x1) + handles.weights(1)*1) ./ -handles.weights(3);
+
+function plotData(hObject,handles)
+
+ %workable data has been uploaded
+    handles.dataPresent = true;
+
+    handles.inputSize = size(handles.inputData,2); %number of data points
+    handles.numInputVariables = size(handles.inputData,1); %number of input variables
+    
+%%         if (get(handles.bipolarCheckbox,'Value')==0) %NOT using bipolar desired outputs
+%             
+%             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%             %CHECK TO MAKE SURE THE DESIRED OUTPUTS ARE ALREADY [0,1]
+%             
+%             for i = 1:handles.inputSize
+%                 handles.inputData(3,i) = (handles.inputData(3,i) + 1)/2;
+%             end
+%         elseif (get(handles.bipolarCheckbox,'Value')==1) %ARE using bipolar desired outputs
+%             
+%             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%             %CHECK TO MAKE SURE THE DESIRED OUTPUTS ARE ALREADY [-1,+1]
+%             
+%             for i = 1:handles.inputSize
+%                 handles.inputData(3,i) = 2*handles.inputData(3,i) - 1;
+%             end
+%         else
+%             %ERROR
+%%         end
+    
+    %clear previous data from axes and plot new data on the axes
+    cla(handles.networkGraph);
+    reset(handles.networkGraph);
+    
+    %handles.networkGraph = axes('XLim', [min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1],...
+                                %'YLim', [min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);
+
+    set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+    set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
+    
+    handles.plottedData = gscatter(handles.inputData(1,1:handles.inputSize),...
+            handles.inputData(2,1:handles.inputSize),...
+            handles.inputData(3,1:handles.inputSize),'br','xo');
+
+    if (handles.presetDataBoolean==true)
+        %To make classification calculations easier, turn all desired outputs
+        %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
+        %as [0,1] graphically but mathematically they will be different.
+        if (ismember([0 1], handles.inputData(3,:)))
+            for i = 1:handles.inputSize
+                handles.inputData(3,i) = 2*handles.inputData(3,i) - 1;
+            end
+        end
+    end
+    
+    %separate the desired output classification and remove it from the input data
+    handles.desiredOutput = handles.inputData(3,:);
+    handles.inputData(3,:)=[];
+    
+    %add the bias inputs to the data
+    handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
+    
+    handles.weights=randn(handles.numInputVariables,1);
+    guidata(hObject,handles);
+    
+    %display new weights on the GUI
+    setWeightLabels(hObject,handles);
+    
+    hold on;
+    displayThresholdBoundary(hObject,handles);
+
+function stepThroughButton_Callback(hObject, eventdata, handles)
+
+global notRunningColour;
+global processingColour;
+global completedColour;
+
+%if no data has been entered then show an error message and exit the
+%playButton function
+if (handles.dataPresent == false)
+    msgbox('No data has been given. Please provide data.', 'Error: No data given', 'error');
+    
+elseif (handles.correct == 1)
+    msgbox('Data has been correctly classified. Please press "Reset Dataset" to restart the learning process.');
+    
+    %if data has been entered, proceed
+elseif (handles.dataPresent == true)
+            
+    %%  set background colours
+    %set the desired output to white to show its outcome hasn't been determined
+        set (handles.desiredOutputLabel,'BackgroundColor','w');
+    %set the perceptron colour to the processing colour to show the data is
+    %being processed
+        set (handles.weightedSumLabel,'BackgroundColor',processingColour);
+        
+    %%  wait and initialise correct and time
+    %wait for an arbitrary amount of time so the processing isn't almost instantaneous
+        pause(0.5);
+
+        if (handles.initialStepThroughComplete == false)
+            handles.numDatapointsToCycleThrough = str2double(get(handles.stepThroughEdit,'String'));
+
+            handles.maxIteration = str2double(get(handles.iterationEdit,'String'));
+            handles.currentIteration = 0;
+
+            handles.correct = -1;
+
+            handles.minBlockDatapoints = 1 - handles.numDatapointsToCycleThrough;
+            handles.maxBlockDatapoints = 0;
+
+            handles.initialStepThroughComplete = true;
+
+            guidata(hObject,handles);
+        end
+        
+    %%  set a hard-coded learning rate
+        if (get(handles.learningRateCheckbox,'Value')==1)
+            learningRate = str2double(get(handles.learningRateEdit,'String'));
+        elseif (get(handles.learningRateCheckbox,'Value')==0)
+            learningRate = 1;
+        end
+        
+    %while the data hasn't been classified correctly and there is still
+    %time to compute the classification
+        if (handles.correct == -1) && (handles.currentIteration < handles.maxIteration)
+
+            %% classify correctly, increment time, set blocks
+            %assume the data has been classified correctly
+                handles.correct = 1;
+            %increment the time variable
+                handles.currentIteration = handles.currentIteration + 1;
+                
+            %set min and max block size for data
+                handles.minBlockDatapoints = handles.minBlockDatapoints + handles.numDatapointsToCycleThrough;
+                handles.maxBlockDatapoints = handles.maxBlockDatapoints + handles.numDatapointsToCycleThrough;
+
+                if handles.maxBlockDatapoints >= handles.inputSize
+                    handles.maxBlockDatapoints = handles.inputSize;
+                end
+                handles
+            %%
+           
+            if (get(handles.stepToggle,'Value')== 1) 
+                
+               
+                    weightedSum = handles.weights' * handles.inputData;
+                    handles.actualOutput = sign(weightedSum);
+                    
+                    error = handles.desiredOutput - handles.actualOutput;
+
+                %what we want, what we get, what the difference is
+                    %[handles.desiredOutput; handles.actualOutput; error]
+
+                %% compare actual with desired, classify correct or not
+                %if any of the actual output is not the same as the desired output then
+                %it is incorrectly classified
+                if any(handles.actualOutput ~=handles.desiredOutput)
+                    handles.correct = -1;
+                end
+                %%
+
+                %if any datapoint is incorrectly classified, adjust the weights
+                if handles.correct == -1
+
+                    %for each datapoint, check if its actual output matches the desired
+                    %output. If not, adjust its weight accordingly.
+                    for i = handles.minBlockDatapoints:handles.maxBlockDatapoints
+                        %% select the currently considered point and highlight it
+                            %handles.inputData(1,i) is the +1 bias constant
+                            x1 = handles.inputData(2,i);
+                            x2 = handles.inputData(3,i);
+                            hold on;
+                            handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',10);
+                            guidata(hObject,handles);
+
+                        %% set the data on the GUI inputEdits and All Network Parameters
+                            setInputLabels(hObject,handles,i);
+                            setWeightLabels(hObject,handles)
+                            setOutputLabels(hObject, handles, i);
+                            set (handles.weightedSumLabel,'String', weightedSum(i));
+                        
+                        %%
+
+                        %if the handles.actualOutput is not the same as the desiredOutput then the weights must be changed
+                        if handles.actualOutput(1,i) ~= handles.desiredOutput(1,i)
+
+                            handles.weights = handles.weights + learningRate*error(i)*handles.inputData(:,i);
+
+                            %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
+
+                            %arbitrary pause to allow the user to see the change in
+                            %the threshold boundary as it moves around
+                            pause(0.001);
+
+                            %% show the weight changes on the GUI as they are processed
+                                setWeightLabels(hObject,handles);           
+                        end
+                        
+                        %after the current point has been considered, delete the current highlight
+                            delete(handles.highlightedPoint);
+                    end
+                end
+                
+            elseif (get(handles.sigmoidToggle,'Value')==1)
+                
+                    weightedSum = handles.weights' * handles.inputData;
+                        handles.actualOutput = 1 ./ (1 + exp(-weightedSum));
+                            error = handles.desiredOutput - handles.actualOutput;
+                            
+                            %reassign the actual output to be thresholded
+                            %once the error has been calculated
+                        handles.actualOutput = sign(1 ./ (1 + exp(-weightedSum)));
+                        
+                        %% compare actual with desired, classify correct or not
+                    %if any of the actual output is not the same as the desired output then
+                    %it is incorrectly classified
+                    if any(handles.actualOutput ~=handles.desiredOutput)
+                        correct = -1;
+                    end
+                    %%
+
+                    %if any datapoint is incorrectly classified, adjust the weights
+                    if correct == -1
+
+                        %for each datapoint, check if its actual output matches the desired
+                        %output. If not, adjust its weight accordingly.
+                        for i = 1:handles.inputSize
+                            %% select the currently considered point and highlight it
+                                %handles.inputData(1,i) is the +1 bias constant
+                                x1 = handles.inputData(2,i);
+                                x2 = handles.inputData(3,i);
+                                hold on;
+                                handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',10);
+                                guidata(hObject,handles);
+
+                            %% set the data on the GUI inputEdits and All Network Parameters
+                                setInputLabels(hObject,handles,i);
+                                setWeightLabels(hObject,handles)
+                                setOutputLabels(hObject, handles, i);
+                                set (handles.weightedSumLabel,'String', weightedSum(i));
+
+                            %%
+
+                            %if the handles.actualOutput is not the same as the desiredOutput then the weights must be changed
+                            if handles.actualOutput(1,i) ~= handles.desiredOutput(1,i)
+
+                                handles.weights = handles.weights + learningRate*error(i)*handles.inputData(:,i);
+
+                                %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
+
+                                %arbitrary pause to allow the user to see the change in
+                                %the threshold boundary as it moves around
+                                pause(0.001);
+                                displayThresholdBoundary(hObject, handles);
+
+                                %% show the weight changes on the GUI as they are processed
+                                    setWeightLabels(hObject,handles);           
+                            end
+
+                            %after the current point has been considered, delete the current highlight
+                                delete(handles.highlightedPoint);
+                        end
+                    end
+            else
+                %ERROR
+            end
+        end
+
+    pause(0.01);
+    displayThresholdBoundary(hObject, handles);
+    
+%     handles.maxBlockDatapoints
+%     handles.minBlockDatapoints
+%     handles.inputSize
+    
+    if handles.maxBlockDatapoints >= handles.inputSize
+        handles.maxBlockDatapoints = 0;
+        handles.minBlockDatapoints = 1 - handles.numDatapointsToCycleThrough;
+    end
+     
+%      x = handles.maxBlockDatapoints
+%      y = handles.minBlockDatapoints
+     
+    %% change feedback colours to show the processing has completed
+        set (handles.desiredOutputLabel,'BackgroundColor',completedColour);
+        set (handles.weightedSumLabel,'BackgroundColor',notRunningColour);
+else
+    %ERROR
+end
+
+guidata(hObject,handles);
+
+function stopButton_Callback(hObject, eventdata, handles)
+
+function graphColourToggle_Callback(hObject, eventdata, handles)
+
+function classAColourChoice_Callback(hObject, eventdata, handles)
+
+function classBColourChoice_Callback(hObject, eventdata, handles)
+
+function thresholdBoundaryColourChoice_Callback(hObject, eventdata, handles)
+
+function loadPresetDataButton_Callback(hObject, eventdata, handles)
+
+%Get the filename and pathname for files of .mat type
+[filename, pathname] = uigetfile('*.mat', 'Load .mat data');
+
+%If the file is empty
+if filename ~= 0
+
+    %load the data stored in the pathname
+        handles.inputData = load(fullfile(pathname, filename));
+    
+    %The data loaded SHOULD have ONE field name, i.e. [1x1 struct] 
+    %The name, i.e. the name of the file loaded, is used to get
+    %the data from the array structure
+        name = fieldnames(handles.inputData);
+    
+    %retrieve the input data from the [1x1 struct]
+        handles.inputData = handles.inputData.(name{1});
+        
+        %store the originally loaded data so it can be reset later
+        handles.originalDataForReset = handles.inputData;
+        
+        handles.presetDataBoolean = true;
+        clearAllLabels(hObject,handles);
+        guidata(hObject,handles);
+        
+        plotData(hObject,handles);
+    
+end
+    
+function generateDatasetButton_Callback(hObject, eventdata, handles)
+
+%NEEDS A BETTER INPUT METHOD I.E. [X1 X2] FOR MEAN AND STD
+
+  title = 'Generate a dataset';
+      prompt{1} = 'Set Class A (+1) dataset size:';
+      prompt{2} = 'Set Class B (-1) dataset size:';
+      prompt{3} = 'Set Class A X1 Mean:';
+      prompt{4} = 'Set Class A X2 Mean:';
+      prompt{5} = 'Set Class A X1 Standard Deviation:';
+      prompt{6} = 'Set Class A X2 Standard Deviation:';
+      prompt{7} = 'Set Class B X1 Mean:';
+      prompt{8} = 'Set Class B X2 Mean:';
+      prompt{9} = 'Set Class B X1 Standard Deviation:';
+      prompt{10} = 'Set Class B X2 Standard Deviation:';
+     
+     %given example{'50','50','[5.5 5.0]','[0.5 1.0]','[2.5 3.0]','[0.3 0.7]'};
+     %suggested example{'50','50','[0.55 0.50]','[0.05 0.1]','[0.25 0.30]','[0.03 0.07]'};
+      default_ans = {'50','50','5.5','5.0','0.5', '1.0',...
+                     '2.5', '3.0','0.3', '0.7'};
+
+         %ERROR PROTECTION FOR INVALID DATA NEEDED
+         promptData = inputdlg(prompt,title,1,default_ans)
+
+%     sampleAsize   = 30;
+%     sampleBsize   = 30;
+% 
+%     sampleAmean   = [ 1.3 1.3]
+%     sampleAstdDev = [ 0.1 0.1 ]
+% 
+%     sampleBmean   = [ 0.7 0.9 ]
+%     sampleBstdDev = [ 0.34 0.16 ]
+    
+    sampleAsize = str2double(promptData(1));
+    sampleBsize = str2double(promptData(2));
+
+    sampleAmean = [str2double(promptData(3)), str2double(promptData(4))];
+   	sampleAstdDev = [str2double(promptData(5)), str2double(promptData(6))];
+    
+    sampleBmean = [str2double(promptData(7)), str2double(promptData(8))];
+    sampleBstdDev = [str2double(promptData(9)), str2double(promptData(10))];
+    
+%% IGNORE=========================================
+     %sampleAsize = str2double(promptData(1))
+     %sampleBsize = str2double(promptData(2))
+     %%cell2mat
+%       sampleAmean = str2num(promptData(3))
+%   	sampleAstdDev = str2num(promptData(4)) 
+%       sampleBmean = cell2mat(promptData(5))
+%    	sampleBstdDev = cell2mat(promptData(6))
+%% ===============================================
+ 
+    handles.inputData  = [...
+        normallyDistributedSample( sampleAsize, sampleAmean, sampleAstdDev )' ...
+        normallyDistributedSample( sampleBsize, sampleBmean, sampleBstdDev )';...
+        ones(sampleAsize,1)' -ones(sampleBsize,1)'];
+    
+    % ---------------------------------------------------------------------
+    % Randomly permute samples & class labels.
+    %
+    %   This is not really necessary, but done to illustrate that the order
+    %   in which observations are evaluated does not matter.
+    %
+     %randomOrder   = randperm( sampleAsize + sampleBsize );
+     %handles.inputData  = handles.inputData( :, randomOrder );
+     %handles.inputData
+%     Data.labels   = Data.labels(  randomOrder, : );
+
+    %store the originally loaded data so it can be reset later
+    handles.originalDataForReset = handles.inputData;
+
+    handles.presetDataBoolean = false;
+    cla(handles.networkGraph);
+    reset(handles.networkGraph);
+    clearAllLabels(hObject,handles);
+    guidata(hObject,handles);
+    
+    plotData(hObject,handles);
+    
+%CODE TAKEN FROM:
+    % http://stackoverflow.com/questions/4882367/implementing-and-ploting-a-perceptron-in-matlab
+    %source: William Payne, Feb 4/11, 13:52   
+function samples = normallyDistributedSample( sampleSize, sampleMean, sampleStdDev )
+%NORMALDISTRIBUTIONSAMPLE
+%
+%   Draw a sample from a normal distribution with specified mean and
+%   standard deviation.
+%
+
+    assert(    isequal( size( sampleMean ), size( sampleStdDev ) ) ...
+            && 1 == size( sampleMean, 1 ),                         ...
+        'Sample mean and standard deviation must be row vectors of equal length.' );
+
+    numFeatures = numel( sampleMean );
+    samples     = randn( sampleSize, numFeatures );
+    samples     = bsxfun( @times, samples, sampleStdDev );
+    samples     = bsxfun( @plus,  samples, sampleMean   );
+
+%end % NORMALDISTRIBUTIONSAMPLE   
+
+function resetDatasetButton_Callback(hObject, eventdata, handles)
+if ~isempty(handles.inputData)
+    clearAllLabels(hObject,handles);
+    
+    decision = questdlg('Would you like to keep all user created datapoints?', ...
+        'Keep user created datapoints?', ...
+        'Yes','No','No');
+    
+    switch decision
+        case 'Yes'  %keep the user created data
+            
+            handles.inputData = [handles.originalDataForReset handles.createdDatapoints];
+            
+            x = handles.inputData
+            
+        case 'No'   %reload data from when data was loaded
+            handles.inputData = handles.originalDataForReset;
+            handles.createdDatapoints = [];
+    end
+    
+    plotData(hObject,handles);
+    
+    handles.correct = -1;
+    handles.initialStepThroughComplete = false;
+    
+    guidata(hObject,handles);
+end
+
+
+function learningRateCheckbox_Callback(hObject, eventdata, handles)
+    
+    if (get(handles.learningRateCheckbox,'Value')==0)
+        set (handles.learningRateEdit,'Visible','off')
+  
+    elseif (get(handles.learningRateCheckbox,'Value')==1)
+        set (handles.learningRateEdit,'Visible','on')
+    end
+
+function widrowHoffCheckbox_Callback(hObject, eventdata, handles)
+
+function bipolarCheckbox_Callback(hObject, eventdata, handles)
+
+function statusColourToggle_Callback(hObject, eventdata, handles)
+
+global notRunningColour;
+global processingColour;
+global completedColour;
+global greyColour;
+
+if (get(handles.statusColourToggle,'Value')==1)
+    set (handles.notRunningColourChoice,'Visible','on');
+    set (handles.processingColourChoice,'Visible','on');
+    set (handles.completedColourChoice,'Visible','on');
+    
+    set (handles.statusColourToggle,'String','On');
+    
+elseif (get (handles.statusColourToggle,'Value')==0)
+    set (handles.notRunningColourChoice,'Visible','off');
+    set (handles.processingColourChoice,'Visible','off');
+    set (handles.completedColourChoice,'Visible','off');
+    
+    set (handles.statusColourToggle,'String','Off');
+    
+    notRunningColour = greyColour;
+    processingColour = 'y';
+    completedColour = 'g';
+    
+    set (handles.weightedSumLabel,'BackgroundColor',notRunningColour);
+    set (handles.desiredOutputLabel,'BackgroundColor','w');
+    
+end
+
+function notRunningColourChoice_Callback(hObject, eventdata, handles)
+
+global notRunningColour;
+
+notRunningColour=uisetcolor;
+    set (handles.weightedSum,'BackgroundColor',notRunningColour);
+    set (handles.notRunningColourChoice,'BackgroundColor',notRunningColour);
+
+function processingColourChoice_Callback(hObject, eventdata, handles)
+
+global processingColour;
+
+processingColour=uisetcolor;
+%set (handles.weightedSum,'BackgroundColor',processingColour);
+set (handles.processingColourChoice,'BackgroundColor',processingColour);
+
+function completedColourChoice_Callback(hObject, eventdata, handles)
+
+global completedColour;
+
+completedColour=uisetcolor;
+set (handles.desiredOutputLabel,'BackgroundColor',completedColour);
+set (handles.completedColourChoice,'BackgroundColor',completedColour);
+
+function setSliderMaxValue(hObject, handles)
+
+if handles.inputSize ~= 0
+    set (handles.stepSlider,'Max',handles.inputSize);
+else 
+    set (handles.stepSlider,'Max', 0);
+end
+
+function stepSlider_Callback(hObject, eventdata, handles)
+
+            function stepSlider_CreateFcn(hObject, eventdata, handles)
+
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+function learningRateEdit_Callback(hObject, eventdata, handles)
+
+learningRate = str2double(get(handles.learningRateEdit,'String'));
+
+if ~(isnumeric(learningRate)...
+   & ~isnan(learningRate)...
+   & isreal(learningRate))
+    
+    errorMessage = msgbox('learning rate must be numerical', 'Error', 'error');
+    set (handles.learningRateEdit, 'String', '');
+    
+elseif learningRate<0 || learningRate>1
+    errorMessage = msgbox('learning rate must be in range of 0 - 1', 'Error','error');
+    set (handles.learningRateEdit, 'String', '');
+end
+
+            function learningRateEdit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+function iterationEdit_Callback(hObject, eventdata, handles)
+
+tempIteration = str2double(get(handles.iterationEdit,'String'));
+
+%if temp is not a number    OR
+%   temp is not an integer e.g. 10.5 ~= floor(10.5), where floor(10.5) == 10 OR
+%   temp is less than 1
+%THEN
+%   error message
+
+if isnan(tempIteration) || (tempIteration ~= floor(tempIteration)) || tempIteration < 1
+    msgbox('Number of Iterations/Epochs must be an integer greater than 0. Default set to "10".', 'Error: Invalid iteration number','error');
+    set (handles.iterationEdit,'String',10);
+end
+
+            function iterationEdit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+function stepThroughEdit_Callback(hObject, eventdata, handles)
+
+if handles.dataPresent == true
+
+    tempStepThrough = str2double(get(handles.stepThroughEdit,'String'));
+
+    if isnan(tempStepThrough) || (tempStepThrough ~= floor(tempStepThrough)) || tempStepThrough < 1 || tempStepThrough > handles.inputSize
+        
+        %create a separate message so handles.inputSize can be inserted
+        %into the messagebox
+        message = sprintf('Number of datapoints to step through must be an integer between 1 and %d. Default set to "1".', handles.inputSize);
+        
+        msgbox(message, 'Error: Invalid number of datapoints to step through','error');
+        set (handles.stepThroughEdit,'String',1);
+    end
+    
+else
+    msgbox('No data has been given. Please provide data to set the number of datapoints to step through.', 'Error: No data given', 'error');
+end
+
+            function stepThroughEdit_CreateFcn(hObject, eventdata, handles)
+
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+function datapointCreationToggle_Callback(hObject, eventdata, handles)
+
+    if (get(handles.datapointCreationToggle,'Value')==1)
+        set (handles.graphOrManualButtonGroup,'Visible','on');
+        set (handles.datapointCreationToggle,'String','On');
+
+        if (get(handles.graphDatapointCreationToggle,'Value')==1)
+            set (handles.datapointCreationClassButtonGroup,'Visible','on');
+        elseif (get(handles.manualDatapointCreationToggle,'Value')==1)
+            set (handles.manualDatapointCreationPanel,'Visible','on');
+        end
+
+    elseif (get(handles.datapointCreationToggle,'Value')==0)
+        set (handles.graphOrManualButtonGroup,'Visible','off');
+        set (handles.datapointCreationToggle,'String','Off');
+
+        set (handles.manualDatapointCreationPanel,'Visible','off');
+        set (handles.datapointCreationClassButtonGroup,'Visible','off');
+
+    end
+
+guidata(hObject,handles);
+
+function graphDatapointCreationToggle_Callback(hObject, eventdata, handles)
+
+    if (get (handles.graphDatapointCreationToggle,'Value')==1)
+        set (handles.datapointCreationClassButtonGroup,'Visible','on');
+        set (handles.manualDatapointCreationPanel,'Visible','off');
+    end
+
+guidata(hObject, handles);
+
+function manualDatapointCreationToggle_Callback(hObject, eventdata, handles)
+
+    if (get (handles.manualDatapointCreationToggle,'Value')==1)
+        set (handles.manualDatapointCreationPanel,'Visible','on');
+        set (handles.datapointCreationClassButtonGroup,'Visible','off');
+    end
+
+    guidata(hObject, handles);
+
+function manualDatapointCreationCompleteButton_Callback(hObject, eventdata, handles)
+
+    %create a matrix that includes +1 on the bias to append to the input
+    %data
+        matrixToAppend = [1;handles.manualX1Input;handles.manualX2Input];
+
+    %append the matrix to the input data
+        handles.inputData = [handles.inputData matrixToAppend];
+    %add the given class to the list of desired classes/outputs
+        handles.desiredOutput = [handles.desiredOutput handles.manualClassInput];
+
+    %update the size of the input so the classification can work correctly
+        handles.inputSize = size(handles.inputData,2);
+
+    %===========
+    %add the given data to another list, which is used to add user created
+    %datapoints to the original input data if the user decides they want to
+    %reset the data with the user created data included.
+    handles.createdDatapoints = [handles.createdDatapoints [handles.manualX1Input; handles.manualX2Input; handles.manualClassInput]];
+
+    %==========
+
+    %referesh the data on the graph
+    %%%%%COULD BE DONE BY JUST ADDING THE NEW DATAPOINTS ONLY RATHER THAN
+    %REPLOTTING ALL DATAPOINTS
+         cla(handles.networkGraph);
+         reset(handles.networkGraph);
+         
+        set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+     set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
+     
+%      hold on;
+%      
+%      gscatter(handles.inputData(2,handles.inputSize),...
+%                 handles.inputData(3, handles.inputSize),...
+%                 handles.desiredOutput(handles.inputSize),'br','xo');
+%             
+%             hold off;
+         
+     %handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+                 %handles.inputData(3,1:handles.inputSize),...
+                 %handles.desiredOutput(1,1:handles.inputSize),'br','xo');
+             
+%      handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+%                  handles.inputData(3,1:handles.inputSize),...
+%                  handles.desiredOutput(1,1:handles.inputSize),'br','xo');        
+%     
+%              handles.plottedData = gscatter(handles.inputData(1,1:handles.inputSize),...
+%             handles.inputData(2,1:handles.inputSize),...
+%             handles.inputData(3,1:handles.inputSize),'br','xo');
+             
+             disp('lololol')
+
+    %set the editboxes to empty to show they're ready for new input
+    set (handles.manualDatapointCreationX1Edit,'String','');
+    set (handles.manualDatapointCreationX2Edit,'String','');
+    set (handles.manualDatapointCreationClassEdit,'String','');
+
+    guidata(hObject,handles);
+        
+function manualDatapointCreationX1Edit_Callback(hObject, eventdata, handles)
+
+manualX1Input = str2double(get(handles.manualDatapointCreationX1Edit,'String'));
+
+if isnumeric(manualX1Input)...
+   & ~isnan(manualX1Input)...
+   & isreal(manualX1Input)
+    
+        handles.manualX1Input = manualX1Input;
+
+else
+    errorMessage = msgbox('X1 Input must be numerical', 'Error', 'error');
+    set (handles.manualDatapointCreationX1Edit, 'String', '');
+end
+
+guidata(hObject,handles);
+
+            function manualDatapointCreationX1Edit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+function manualDatapointCreationX2Edit_Callback(hObject, eventdata, handles)
+
+manualX2Input = str2double(get(handles.manualDatapointCreationX2Edit,'String'));
+
+if isnumeric(manualX2Input)...
+   & ~isnan(manualX2Input)...
+   & isreal(manualX2Input)
+    
+    handles.manualX2Input = manualX2Input;
+
+else
+    errorMessage = msgbox('X2 Input must be numerical', 'Error', 'error');
+    set (handles.manualDatapointCreationX2Edit, 'String', '');
+end
+
+guidata(hObject,handles);
+
+            function manualDatapointCreationX2Edit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+function manualDatapointCreationClassEdit_Callback(hObject, eventdata, handles)
+
+manualClassInput = str2double(get(handles.manualDatapointCreationClassEdit,'String'));
+
+if isnumeric(manualClassInput)...
+   && (manualClassInput == 1 || manualClassInput == -1)
+
+    handles.manualClassInput = manualClassInput;
+else
+    errorMessage = msgbox('Desired class must be +1 or -1', 'Error', 'error');
+    set (handles.manualDatapointCreationClassEdit, 'String', '');
+end
+
+guidata(hObject,handles);
+
+            function manualDatapointCreationClassEdit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% --- Executes on mouse press over axes background.
+function networkGraph_ButtonDownFcn(hObject, eventdata, handles)
+% hObject    handle to networkGraph (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+disp ('Hi')
+
+if (get(handles.datapointCreationToggle,'Value')==1) && (get(handles.graphDatapointCreationToggle,'Value')==1)
+   
+    %axesParent = get(hObject,'Parent');
+    tempInput = get(hObject,'CurrentPoint')
+    
+    if (get(handles.classAToggle,'Value')==1)
+        tempDesiredOutput = 1;
+    elseif (get(handles.classBToggle,'Value')==1)
+        tempDesiredOutput = -1;
+    else
+        %Error
+    end
+    
+    handles.inputData = [handles.inputData [tempInput(1,1:2)'; tempDesiredOutput]];
+    
+    x = handles.inputData
+    
+    plotData(hObject,handles);
+    
+    guidata(hObject,handles);
+    
+end
+
+function classBToggle_Callback(hObject, eventdata, handles)
+
+function classAToggle_Callback(hObject, eventdata, handles)
