@@ -65,61 +65,35 @@ setHardCodedData(handles);
 % create and initialise colour variables
 initialiseColour(handles);
 
-initialiseDatapointCreation(handles);
+%initialise the graph toggle (an arbitrary choice between graph and manual
+%toggle) so only one datapoint creation option is ever available at a time
+set(handles.graphDatapointCreationToggle,'Value',1);
+graphDatapointCreationToggle_Callback(hObject, eventdata, handles);
 
-%% set learningRateEdit to be invisible so user cannot edit it without
-%turning on the learning rate checkbox, and set learningRate 
-    set (handles.learningRateEdit,'Visible','off');
+%stop the user from being able to use the slider until the program has classified
+%the data. 
+set (handles.stepSlider,'Enable','off');
 
-%%
+handles.inputData = [];
+handles.inputSize = zeros;
+handles.originalDataForReset = [];
+handles.desiredOutput = [];
+handles.dataPresent = false;
 
-%set the minimum starting position of the step slider to be 0
-set (handles.stepSlider,'min',0);
+handles.manualX1Input = 0;
+handles.manualX2Input = 0;
+handles.manualClassInput = 0;
 
-if ~isfield(handles,'originalDataForReset')
-    handles.originalDataForReset = zeros;
-end
+handles.presetDataBoolean = false;
 
-if ~isfield(handles,'inputData')
-    handles.inputData = [];
-end
-
-if ~isfield(handles,'inputSize')
-    handles.inputSize = zeros;
-end
-
-if ~isfield(handles,'dataPresent')
-    handles.dataPresent = false;
-end
-
-if ~isfield(handles,'manualX1Input')
-    handles.manualX1Input = 0;
-end
-
-if ~isfield(handles,'manualX2Input')
-    handles.manualX2Input = 0;
-end
-
-if ~isfield(handles,'manualClassInput')
-    handles.manualClassInput = 0;
-end
-
-if ~isfield(handles,'presetDataBoolean')
-    handles.presetDataBoolean = false;
-end
-
+handles.initialStepThroughComplete = false;
 handles.numDatapointsToCycleThrough = 0;
-
 handles.maxIteration = 0;
 handles.currentIteration = 0;
-
-handles.correct = -1;
-
 handles.minBlockDatapoints = 0;
 handles.maxBlockDatapoints = 0;
 
-handles.initialStepThroughComplete = false;
-
+handles.correct = -1;
 
 %handle for appending to handles.inputData in ManualDatapointCreationCompleteButton_Callback
 %resetting the data to include the users created datapoints 
@@ -129,7 +103,6 @@ handles.createdDatapoints = [];
 %set (handles.networkGraph, 'HitTest','off');
 %set (handles.networkGraph,'ButtonDownFcn',{@networkGraphDatapointCreation});
 %set (gca, 'buttondownfcn',{@networkGraph_ButtonDownFcn,handles})
-
 
 guidata(hObject,handles);
 
@@ -154,38 +127,27 @@ function setHardCodedData(handles)
     set (handles.w2InputLabel,'String','0.5');
     set (handles.desiredOutputLabel,'String','1');
     set (handles.actualOutputLabel,'String','');
+    set (handles.learningRateEdit,'String','1');
     
 function initialiseColour(handles)
-    set (handles.notRunningColourChoice,'Visible','off');
-    set (handles.processingColourChoice,'Visible','off');
-    set (handles.completedColourChoice,'Visible','off');
 
-    set (handles.statusColourToggle,'String','Off');
+handles.notRunningColour = [.8 .8 .8];
+handles.processingColour = 'y';
+handles.completedColour = 'g';
 
-    set (handles.classAColourChoice,'Visible','off');
-    set (handles.classBColourChoice,'Visible','off');
-    set (handles.thresholdBoundaryColourChoice,'Visible','off');
+handles.classAColour = 'b';
+handles.classBColour = 'r';
+handles.thresholdColour = 'k';
 
-    set (handles.graphColourToggle,'String','Off');
+set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
+set (handles.notRunningPanel,'BackgroundColor',handles.notRunningColour);
+set (handles.processingPanel,'BackgroundColor',handles.processingColour);
+set (handles.completedPanel,'BackgroundColor',handles.completedColour);
 
-    global notRunningColour;
-    global greyColour;
-    greyColour = [.80 .80 .80];
-    notRunningColour = greyColour;
+set (handles.classAPanel,'BackgroundColor',handles.classAColour);
+set (handles.classBPanel,'BackgroundColor',handles.classBColour);
+set (handles.thresholdPanel,'BackgroundColor',handles.thresholdColour);
 
-    global processingColour;
-    processingColour = 'y';
-
-    global completedColour;
-    completedColour = 'g';
-
-    set (handles.weightedSumLabel,'BackgroundColor',notRunningColour);
-    
-function initialiseDatapointCreation(handles)
-    set (handles.datapointCreationToggle,'String','Off');
-    set (handles.datapointCreationClassButtonGroup,'Visible','Off');
-    set (handles.graphOrManualButtonGroup,'Visible','off');
-    set (handles.manualDatapointCreationPanel,'Visible','off');   
 
 function setWeightLabels(hObject,handles)
     set (handles.w0InputLabel,'String',handles.weights(1));
@@ -216,10 +178,6 @@ function helpButton_Callback(hObject, eventdata, handles)
 
 function playButton_Callback(hObject, eventdata, handles)
 
-global notRunningColour;
-global processingColour;
-global completedColour;
-
 %if no data has been entered then show an error message and exit the
 %playButton function
 if (handles.dataPresent == false)
@@ -242,11 +200,12 @@ elseif (handles.dataPresent == true)
         set (handles.desiredOutputLabel,'BackgroundColor','w');
     %set the perceptron colour to the processing colour to show the data is
     %being processed
-        set (handles.weightedSumLabel,'BackgroundColor',processingColour);
+        set (handles.weightedSumLabel,'BackgroundColor',handles.processingColour);
         
     %%  wait and initialise correct and time
     %wait for an arbitrary amount of time so the processing isn't almost instantaneous
         pause(0.5);
+        disableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
 
     %assume the data has not classified correctly
         correct = -1; 
@@ -255,14 +214,9 @@ elseif (handles.dataPresent == true)
     %epochs/iterations/time stamps
         t=0;
         
-    %%  set a hard-coded learning rate
-    %TO CODE: CAN BE DETERMINED BY THE USER LATER
-        if (get(handles.learningRateCheckbox,'Value')==1)
+    %%  get the learning rate
             learningRate = str2double(get(handles.learningRateEdit,'String'));
-        elseif (get(handles.learningRateCheckbox,'Value')==0)
-            learningRate = 1;
-        end
-        
+
 %%
     
     %while the data hasn't been classified correctly and there is still
@@ -407,8 +361,8 @@ elseif (handles.dataPresent == true)
      displayThresholdBoundary(hObject, handles);
      
     %% change feedback colours to show the processing has completed
-        set (handles.desiredOutputLabel,'BackgroundColor',completedColour);
-        set (handles.weightedSumLabel,'BackgroundColor',notRunningColour);
+        set (handles.desiredOutputLabel,'BackgroundColor',handles.completedColour);
+        set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
 else
     %ERROR
 end
@@ -447,12 +401,6 @@ delete(thresholdBoundary);
     
     guidata(hObject,handles);
 
-% 0 = w0 * 1 + w1 * x1 = w2 * x2, 
-%x2 = (1 – 1.3679 * x1)/ 0.9308
-%y=-W(1,1)/W(1,2)*x-B(1)/W(1,2);
-%y1 = ( (x2Weight*x2) + biasWeight*1) ./ -x1Weight;
-%y2 = ( (handles.weights(2)*x1) + handles.weights(1)*1) ./ -handles.weights(3);
-
 function plotData(hObject,handles)
 
  %workable data has been uploaded
@@ -460,33 +408,10 @@ function plotData(hObject,handles)
 
     handles.inputSize = size(handles.inputData,2); %number of data points
     handles.numInputVariables = size(handles.inputData,1); %number of input variables
-    
-%%         if (get(handles.bipolarCheckbox,'Value')==0) %NOT using bipolar desired outputs
-%             
-%             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%             %CHECK TO MAKE SURE THE DESIRED OUTPUTS ARE ALREADY [0,1]
-%             
-%             for i = 1:handles.inputSize
-%                 handles.inputData(3,i) = (handles.inputData(3,i) + 1)/2;
-%             end
-%         elseif (get(handles.bipolarCheckbox,'Value')==1) %ARE using bipolar desired outputs
-%             
-%             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%             %CHECK TO MAKE SURE THE DESIRED OUTPUTS ARE ALREADY [-1,+1]
-%             
-%             for i = 1:handles.inputSize
-%                 handles.inputData(3,i) = 2*handles.inputData(3,i) - 1;
-%             end
-%         else
-%             %ERROR
-%%         end
-    
+
     %clear previous data from axes and plot new data on the axes
     cla(handles.networkGraph);
     reset(handles.networkGraph);
-    
-    %handles.networkGraph = axes('XLim', [min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1],...
-                                %'YLim', [min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);
 
     set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
     set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
@@ -521,12 +446,8 @@ function plotData(hObject,handles)
     
     hold on;
     displayThresholdBoundary(hObject,handles);
-
+    
 function stepThroughButton_Callback(hObject, eventdata, handles)
-
-global notRunningColour;
-global processingColour;
-global completedColour;
 
 %if no data has been entered then show an error message and exit the
 %playButton function
@@ -544,23 +465,35 @@ elseif (handles.dataPresent == true)
         set (handles.desiredOutputLabel,'BackgroundColor','w');
     %set the perceptron colour to the processing colour to show the data is
     %being processed
-        set (handles.weightedSumLabel,'BackgroundColor',processingColour);
+        set (handles.weightedSumLabel,'BackgroundColor',handles.processingColour);
         
     %%  wait and initialise correct and time
     %wait for an arbitrary amount of time so the processing isn't almost instantaneous
         pause(0.5);
-
+        
+        disableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
+        
+        
+        %if this is the first time step through has been pressed with the
+        %current data
         if (handles.initialStepThroughComplete == false)
+            
+            %set the number of datapoints to cycle through
             handles.numDatapointsToCycleThrough = str2double(get(handles.stepThroughEdit,'String'));
 
+            %get the maximum number of iterations entered by the user
             handles.maxIteration = str2double(get(handles.iterationEdit,'String'));
             handles.currentIteration = 0;
 
+            %set the data to being uncorrectly classified
             handles.correct = -1;
 
+            %initialise the number of datapoints to cycle through as
+            %"blocks"
             handles.minBlockDatapoints = 1 - handles.numDatapointsToCycleThrough;
             handles.maxBlockDatapoints = 0;
 
+            %the initial step has been completed
             handles.initialStepThroughComplete = true;
 
             guidata(hObject,handles);
@@ -573,26 +506,28 @@ elseif (handles.dataPresent == true)
             learningRate = 1;
         end
         
-    %while the data hasn't been classified correctly and there is still
+    %if the data hasn't been classified correctly and there is still
     %time to compute the classification
         if (handles.correct == -1) && (handles.currentIteration < handles.maxIteration)
 
-            %% classify correctly, increment time, set blocks
+            %% classify correctly, increment time, set min and max block size
             %assume the data has been classified correctly
                 handles.correct = 1;
-            %increment the time variable
                 handles.currentIteration = handles.currentIteration + 1;
                 
-            %set min and max block size for data
+                %increment the "block" to consider the next set of
+                %datapoints
                 handles.minBlockDatapoints = handles.minBlockDatapoints + handles.numDatapointsToCycleThrough;
                 handles.maxBlockDatapoints = handles.maxBlockDatapoints + handles.numDatapointsToCycleThrough;
 
+                %if the max block size is greater than the total number of datapoints
+                %then reduce its size 
                 if handles.maxBlockDatapoints >= handles.inputSize
                     handles.maxBlockDatapoints = handles.inputSize;
                 end
-                handles
             %%
-           
+            
+            %choose which threshold function to use
             if (get(handles.stepToggle,'Value')== 1) 
                 
                
@@ -625,25 +560,30 @@ elseif (handles.dataPresent == true)
                             hold on;
                             handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',10);
                             guidata(hObject,handles);
+                            pause(0.1);
 
-                        %% set the data on the GUI inputEdits and All Network Parameters
+                        %% set the data on the GUI
                             setInputLabels(hObject,handles,i);
                             setWeightLabels(hObject,handles)
                             setOutputLabels(hObject, handles, i);
                             set (handles.weightedSumLabel,'String', weightedSum(i));
-                        
                         %%
 
                         %if the handles.actualOutput is not the same as the desiredOutput then the weights must be changed
                         if handles.actualOutput(1,i) ~= handles.desiredOutput(1,i)
 
                             handles.weights = handles.weights + learningRate*error(i)*handles.inputData(:,i);
-
-                            %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
+                                %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
 
                             %arbitrary pause to allow the user to see the change in
                             %the threshold boundary as it moves around
-                            pause(0.001);
+                            pause(0.1);
+                            
+                            %as only one threshold boundary is drawn for a
+                            %user defined number of datapoints, the program
+                            %can drop out of the classification if statement
+                            %and draw the line at the end
+                            
 
                             %% show the weight changes on the GUI as they are processed
                                 setWeightLabels(hObject,handles);           
@@ -722,21 +662,25 @@ elseif (handles.dataPresent == true)
     pause(0.01);
     displayThresholdBoundary(hObject, handles);
     
-%     handles.maxBlockDatapoints
-%     handles.minBlockDatapoints
-%     handles.inputSize
+    %debug statements
+     %x =handles.maxBlockDatapoints
+     %y=handles.minBlockDatapoints
+     %z=handles.inputSize
     
+%if all datapoints have been considered, one pass has been made and the block
+%sizes must be reset
     if handles.maxBlockDatapoints >= handles.inputSize
         handles.maxBlockDatapoints = 0;
         handles.minBlockDatapoints = 1 - handles.numDatapointsToCycleThrough;
     end
      
-%      x = handles.maxBlockDatapoints
-%      y = handles.minBlockDatapoints
+    %debug statements
+      %x = handles.maxBlockDatapoints
+      %y = handles.minBlockDatapoints
      
     %% change feedback colours to show the processing has completed
-        set (handles.desiredOutputLabel,'BackgroundColor',completedColour);
-        set (handles.weightedSumLabel,'BackgroundColor',notRunningColour);
+        set (handles.desiredOutputLabel,'BackgroundColor',handles.completedColour);
+        set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
 else
     %ERROR
 end
@@ -744,14 +688,6 @@ end
 guidata(hObject,handles);
 
 function stopButton_Callback(hObject, eventdata, handles)
-
-function graphColourToggle_Callback(hObject, eventdata, handles)
-
-function classAColourChoice_Callback(hObject, eventdata, handles)
-
-function classBColourChoice_Callback(hObject, eventdata, handles)
-
-function thresholdBoundaryColourChoice_Callback(hObject, eventdata, handles)
 
 function loadPresetDataButton_Callback(hObject, eventdata, handles)
 
@@ -777,22 +713,20 @@ if filename ~= 0
         
         handles.presetDataBoolean = true;
         clearAllLabels(hObject,handles);
+        enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
         
         %=======
         handles.correct = -1;
         handles.initialStepThroughComplete = false;
         
         guidata(hObject,handles);
-        
-        
-        plotData(hObject,handles);
 
+        plotData(hObject,handles);
 end
     
 function generateDatasetButton_Callback(hObject, eventdata, handles)
 
 %NEEDS A BETTER INPUT METHOD I.E. [X1 X2] FOR MEAN AND STD
-
   title = 'Generate a dataset';
       prompt{1} = 'Set Class A (+1) dataset size:';
       prompt{2} = 'Set Class B (-1) dataset size:';
@@ -811,8 +745,14 @@ function generateDatasetButton_Callback(hObject, eventdata, handles)
                      '2.5', '3.0','0.3', '0.7'};
 
          %ERROR PROTECTION FOR INVALID DATA NEEDED
-         promptData = inputdlg(prompt,title,1,default_ans)
+         promptData = inputdlg(prompt,title,1,default_ans);
+         
+         %if the user cancels, exit the function
+         if isempty(promptData)
+             return;
+         end
 
+%% Example sample
 %     sampleAsize   = 30;
 %     sampleBsize   = 30;
 % 
@@ -821,7 +761,8 @@ function generateDatasetButton_Callback(hObject, eventdata, handles)
 % 
 %     sampleBmean   = [ 0.7 0.9 ]
 %     sampleBstdDev = [ 0.34 0.16 ]
-    
+%%
+
     sampleAsize = str2double(promptData(1));
     sampleBsize = str2double(promptData(2));
 
@@ -839,23 +780,24 @@ function generateDatasetButton_Callback(hObject, eventdata, handles)
 %   	sampleAstdDev = str2num(promptData(4)) 
 %       sampleBmean = cell2mat(promptData(5))
 %    	sampleBstdDev = cell2mat(promptData(6))
-%% ===============================================
- 
+% ===============================================
+%%
     handles.inputData  = [...
         normallyDistributedSample( sampleAsize, sampleAmean, sampleAstdDev )' ...
         normallyDistributedSample( sampleBsize, sampleBmean, sampleBstdDev )';...
         ones(sampleAsize,1)' -ones(sampleBsize,1)'];
     
-    % ---------------------------------------------------------------------
+    %% ---------------------------------------------------------------------
     % Randomly permute samples & class labels.
     %
     %   This is not really necessary, but done to illustrate that the order
     %   in which observations are evaluated does not matter.
     %
-     %randomOrder   = randperm( sampleAsize + sampleBsize );
-     %handles.inputData  = handles.inputData( :, randomOrder );
-     %handles.inputData
-%     Data.labels   = Data.labels(  randomOrder, : );
+    %randomOrder   = randperm( sampleAsize + sampleBsize );
+    %handles.inputData  = handles.inputData( :, randomOrder );
+    %handles.inputData
+    %Data.labels   = Data.labels(  randomOrder, : );
+    %% 
 
     %store the originally loaded data so it can be reset later
     handles.originalDataForReset = handles.inputData;
@@ -864,21 +806,20 @@ function generateDatasetButton_Callback(hObject, eventdata, handles)
     cla(handles.networkGraph);
     reset(handles.networkGraph);
     clearAllLabels(hObject,handles);
-   
-     %=======
-        handles.correct = -1;
-        handles.initialStepThroughComplete = false;
+
+    handles.correct = -1;
+    handles.initialStepThroughComplete = false;
+    enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
         
     guidata(hObject,handles);
     
     plotData(hObject,handles);
-    
-   
-    
-%CODE TAKEN FROM:
+
+function samples = normallyDistributedSample( sampleSize, sampleMean, sampleStdDev )
+    %CODE TAKEN FROM:
     % http://stackoverflow.com/questions/4882367/implementing-and-ploting-a-perceptron-in-matlab
     %source: William Payne, Feb 4/11, 13:52   
-function samples = normallyDistributedSample( sampleSize, sampleMean, sampleStdDev )
+    
 %NORMALDISTRIBUTIONSAMPLE
 %
 %   Draw a sample from a normal distribution with specified mean and
@@ -893,7 +834,6 @@ function samples = normallyDistributedSample( sampleSize, sampleMean, sampleStdD
     samples     = randn( sampleSize, numFeatures );
     samples     = bsxfun( @times, samples, sampleStdDev );
     samples     = bsxfun( @plus,  samples, sampleMean   );
-
 %end % NORMALDISTRIBUTIONSAMPLE   
 
 function resetDatasetButton_Callback(hObject, eventdata, handles)
@@ -906,91 +846,112 @@ if ~isempty(handles.inputData)
     
     switch decision
         case 'Yes'  %keep the user created data
-            
             handles.inputData = [handles.originalDataForReset handles.createdDatapoints];
-            
-            x = handles.inputData
-            
         case 'No'   %reload data from when data was loaded
             handles.inputData = handles.originalDataForReset;
             handles.createdDatapoints = [];
     end
     
-    plotData(hObject,handles);
+   plotData(hObject,handles);
     
-    handles.correct = -1;
-    handles.initialStepThroughComplete = false;
+   handles.correct = -1;
+   handles.initialStepThroughComplete = false;
+   
+   %allow users to make changes to the learning process again
+   enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
+    
+   guidata(hObject,handles);
+end
+
+%======================
+function disableEditBoxesAndThresholdToggles(hObject,eventdata, handles)
+    
+    %stop the user from changing values, threshold function types, or create new datapoints half
+    %way through the learning process. This will prevent unwanted errors.
+    set(handles.stepToggle,'Enable','Off');
+    set(handles.sigmoidToggle,'Enable','Off');
+    
+    set(handles.learningRateEdit,'Enable','Off');
+    
+    set(handles.iterationEdit,'Enable','Off');
+    set(handles.stepThroughEdit,'Enable','Off');
+    
+    set(handles.graphDatapointCreationToggle,'Enable','off');
+    set(handles.manualDatapointCreationToggle,'Enable','off');
+ 
+        set (handles.classAToggle,'Enable','off');
+        set (handles.classBToggle,'Enable','off');
+
+        set (handles.manualDatapointCreationX1Edit,'Enable','off');
+        set (handles.manualDatapointCreationX2Edit,'Enable','off');
+        set (handles.manualDatapointCreationClassEdit,'Enable','off');
+        set (handles.manualDatapointCreationCompleteButton,'Enable','off');
+    
+    guidata(hObject,handles);     
+function enableEditBoxesAndThresholdToggles(hObject,eventdata, handles)
+            
+    %renable the ability for users to change values, threshold functions
+    %and create new values.
+    set(handles.stepToggle,'Enable','On');
+    set(handles.sigmoidToggle,'Enable','On');
+    
+    set(handles.learningRateEdit,'Enable','On');
+    
+    set(handles.iterationEdit,'Enable','On');
+    set(handles.stepThroughEdit,'Enable','On');
+    
+    set(handles.graphDatapointCreationToggle,'Enable','on');
+    set(handles.manualDatapointCreationToggle,'Enable','on');
+        graphDatapointCreationToggle_Callback(hObject,eventdata, handles);
+        manualDatapointCreationToggle_Callback(hObject,eventdata, handles);
     
     guidata(hObject,handles);
-end
+%======================
 
-
-function learningRateCheckbox_Callback(hObject, eventdata, handles)
-    
-    if (get(handles.learningRateCheckbox,'Value')==0)
-        set (handles.learningRateEdit,'Visible','off')
-  
-    elseif (get(handles.learningRateCheckbox,'Value')==1)
-        set (handles.learningRateEdit,'Visible','on')
-    end
-
-function widrowHoffCheckbox_Callback(hObject, eventdata, handles)
-
-function bipolarCheckbox_Callback(hObject, eventdata, handles)
-
-function statusColourToggle_Callback(hObject, eventdata, handles)
-
-global notRunningColour;
-global processingColour;
-global completedColour;
-global greyColour;
-
-if (get(handles.statusColourToggle,'Value')==1)
-    set (handles.notRunningColourChoice,'Visible','on');
-    set (handles.processingColourChoice,'Visible','on');
-    set (handles.completedColourChoice,'Visible','on');
-    
-    set (handles.statusColourToggle,'String','On');
-    
-elseif (get (handles.statusColourToggle,'Value')==0)
-    set (handles.notRunningColourChoice,'Visible','off');
-    set (handles.processingColourChoice,'Visible','off');
-    set (handles.completedColourChoice,'Visible','off');
-    
-    set (handles.statusColourToggle,'String','Off');
-    
-    notRunningColour = greyColour;
-    processingColour = 'y';
-    completedColour = 'g';
-    
-    set (handles.weightedSumLabel,'BackgroundColor',notRunningColour);
-    set (handles.desiredOutputLabel,'BackgroundColor','w');
-    
-end
+%=====================
 
 function notRunningColourChoice_Callback(hObject, eventdata, handles)
 
-global notRunningColour;
-
-notRunningColour=uisetcolor;
-    set (handles.weightedSum,'BackgroundColor',notRunningColour);
-    set (handles.notRunningColourChoice,'BackgroundColor',notRunningColour);
+handles.notRunningColour=uisetcolor;
+%set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
+set (handles.notRunningPanel,'BackgroundColor',handles.notRunningColour);
+guidata(hObject,handles);
 
 function processingColourChoice_Callback(hObject, eventdata, handles)
 
-global processingColour;
-
-processingColour=uisetcolor;
-%set (handles.weightedSum,'BackgroundColor',processingColour);
-set (handles.processingColourChoice,'BackgroundColor',processingColour);
+handles.processingColour=uisetcolor;
+%set (handles.weightedSumLabel,'BackgroundColor',handles.processingColour);
+set (handles.processingPanel,'BackgroundColor',handles.processingColour);
+guidata(hObject,handles);
 
 function completedColourChoice_Callback(hObject, eventdata, handles)
 
-global completedColour;
+handles.completedColour=uisetcolor;
+%set (handles.desiredOutputLabel,'BackgroundColor',handles.completedColour);
+set (handles.completedPanel,'BackgroundColor',handles.completedColour);
+guidata(hObject,handles);
 
-completedColour=uisetcolor;
-set (handles.desiredOutputLabel,'BackgroundColor',completedColour);
-set (handles.completedColourChoice,'BackgroundColor',completedColour);
+function classAColourChoice_Callback(hObject, eventdata, handles)
+ 
+handles.classAColour = uisetcolor;
+%set
+set(handles.classAPanel,'BackgroundColor',handles.classAColour);
+guidata(hObject,handles);
+
+function classBColourChoice_Callback(hObject, eventdata, handles)
+
+handles.classBColour = uisetcolor;
+%set
+set(handles.classBPanel,'BackgroundColor',handles.classBColour);
+guidata(hObject,handles);
+
+function thresholdBoundaryColourChoice_Callback(hObject, eventdata, handles)
+    
+handles.thresholdColour = uisetcolor;
+%set
+set(handles.thresholdPanel,'BackgroundColor',handles.thresholdColour);
+guidata(hObject,handles);  
+%========================
 
 function setSliderMaxValue(hObject, handles)
 
@@ -1001,29 +962,25 @@ else
 end
 
 function stepSlider_Callback(hObject, eventdata, handles)
-
             function stepSlider_CreateFcn(hObject, eventdata, handles)
 
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
+%=====================
 
 function learningRateEdit_Callback(hObject, eventdata, handles)
 
 learningRate = str2double(get(handles.learningRateEdit,'String'));
 
-if ~(isnumeric(learningRate)...
+if (~(isnumeric(learningRate)...
    & ~isnan(learningRate)...
-   & isreal(learningRate))
+   & isreal(learningRate)))...
+   || (learningRate<0 || learningRate>1)
     
-    errorMessage = msgbox('learning rate must be numerical', 'Error', 'error');
-    set (handles.learningRateEdit, 'String', '');
-    
-elseif learningRate<0 || learningRate>1
-    errorMessage = msgbox('learning rate must be in range of 0 - 1', 'Error','error');
-    set (handles.learningRateEdit, 'String', '');
+    errorMessage = msgbox('Learning rate must be in the range of 0 - 1 ', 'Error', 'error');
+    set (handles.learningRateEdit, 'String', '1');
 end
-
             function learningRateEdit_CreateFcn(hObject, eventdata, handles)
 
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -1044,7 +1001,6 @@ if isnan(tempIteration) || (tempIteration ~= floor(tempIteration)) || tempIterat
     msgbox('Number of Iterations/Epochs must be an integer greater than 0. Default set to "10".', 'Error: Invalid iteration number','error');
     set (handles.iterationEdit,'String',10);
 end
-
             function iterationEdit_CreateFcn(hObject, eventdata, handles)
 
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -1070,131 +1026,93 @@ if handles.dataPresent == true
 else
     msgbox('No data has been given. Please provide data to set the number of datapoints to step through.', 'Error: No data given', 'error');
 end
-
             function stepThroughEdit_CreateFcn(hObject, eventdata, handles)
 
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
-function datapointCreationToggle_Callback(hObject, eventdata, handles)
-
-    if (get(handles.datapointCreationToggle,'Value')==1)
-        set (handles.graphOrManualButtonGroup,'Visible','on');
-        set (handles.datapointCreationToggle,'String','On');
-
-        if (get(handles.graphDatapointCreationToggle,'Value')==1)
-            set (handles.datapointCreationClassButtonGroup,'Visible','on');
-        elseif (get(handles.manualDatapointCreationToggle,'Value')==1)
-            set (handles.manualDatapointCreationPanel,'Visible','on');
-        end
-
-    elseif (get(handles.datapointCreationToggle,'Value')==0)
-        set (handles.graphOrManualButtonGroup,'Visible','off');
-        set (handles.datapointCreationToggle,'String','Off');
-
-        set (handles.manualDatapointCreationPanel,'Visible','off');
-        set (handles.datapointCreationClassButtonGroup,'Visible','off');
-
-    end
-
-guidata(hObject,handles);
+%==================
 
 function graphDatapointCreationToggle_Callback(hObject, eventdata, handles)
 
+    %turn on graphical datapoint creation and turn off manual datapoint
+    %creation
     if (get (handles.graphDatapointCreationToggle,'Value')==1)
-        set (handles.datapointCreationClassButtonGroup,'Visible','on');
-        set (handles.manualDatapointCreationPanel,'Visible','off');
+        
+        set (handles.classAToggle,'Enable','on');
+        set (handles.classBToggle,'Enable','on');
+       
+        set (handles.manualDatapointCreationX1Edit,'Enable','off');
+        set (handles.manualDatapointCreationX2Edit,'Enable','off');
+        set (handles.manualDatapointCreationClassEdit,'Enable','off');
+        set (handles.manualDatapointCreationCompleteButton,'Enable','off');
     end
 
 guidata(hObject, handles);
 
 function manualDatapointCreationToggle_Callback(hObject, eventdata, handles)
 
+    %turn on manual datapoint creation and turn off graphical datapoint
+    %creation
     if (get (handles.manualDatapointCreationToggle,'Value')==1)
-        set (handles.manualDatapointCreationPanel,'Visible','on');
-        set (handles.datapointCreationClassButtonGroup,'Visible','off');
+        
+        set (handles.manualDatapointCreationX1Edit,'Enable','on');
+        set (handles.manualDatapointCreationX2Edit,'Enable','on');
+        set (handles.manualDatapointCreationClassEdit,'Enable','on');
+        set (handles.manualDatapointCreationCompleteButton,'Enable','on');
+        
+        set (handles.classAToggle,'Enable','off');
+        set (handles.classBToggle,'Enable','off');
     end
 
     guidata(hObject, handles);
 
 function manualDatapointCreationCompleteButton_Callback(hObject, eventdata, handles)
 
-    %create a matrix that includes +1 on the bias to append to the input
-    %data
-        matrixToAppend = [1;handles.manualX1Input;handles.manualX2Input];
+%append the new datapoint to the input data, desiredOutput, and
+%recalculate inputSize
+    handles.inputData = [handles.inputData [1; handles.manualX1Input; handles.manualX2Input]];
+    handles.desiredOutput = [handles.desiredOutput handles.manualClassInput];
+    handles.inputSize = size(handles.inputData,2);
 
-    %append the matrix to the input data
-        handles.inputData = [handles.inputData matrixToAppend];
-    %add the given class to the list of desired classes/outputs
-        handles.desiredOutput = [handles.desiredOutput handles.manualClassInput];
-
-    %update the size of the input so the classification can work correctly
-        handles.inputSize = size(handles.inputData,2);
-
-    %===========
-    %add the given data to another list, which is used to add user created
-    %datapoints to the original input data if the user decides they want to
-    %reset the data with the user created data included.
+%append the new datapoint to createdDatapoints. Allows the user the
+%option of including manually created data when reseting datapoints
     handles.createdDatapoints = [handles.createdDatapoints [handles.manualX1Input; handles.manualX2Input; handles.manualClassInput]];
 
-    %==========
+%referesh the data on the graph
+%%%%%COULD BE DONE BY JUST ADDING THE NEW DATAPOINTS ONLY RATHER THAN
+%REPLOTTING ALL DATAPOINTS
+    cla(handles.networkGraph);
+    reset(handles.networkGraph);
 
-    %referesh the data on the graph
-    %%%%%COULD BE DONE BY JUST ADDING THE NEW DATAPOINTS ONLY RATHER THAN
-    %REPLOTTING ALL DATAPOINTS
-         cla(handles.networkGraph);
-         reset(handles.networkGraph);
-         
-        set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-     set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
-     
-%      hold on;
-%      
-%      gscatter(handles.inputData(2,handles.inputSize),...
-%                 handles.inputData(3, handles.inputSize),...
-%                 handles.desiredOutput(handles.inputSize),'br','xo');
-%             
-%             hold off;
-         
-     %handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-                 %handles.inputData(3,1:handles.inputSize),...
-                 %handles.desiredOutput(1,1:handles.inputSize),'br','xo');
-             
-%      handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-%                  handles.inputData(3,1:handles.inputSize),...
-%                  handles.desiredOutput(1,1:handles.inputSize),'br','xo');        
-%     
-%              handles.plottedData = gscatter(handles.inputData(1,1:handles.inputSize),...
-%             handles.inputData(2,1:handles.inputSize),...
-%             handles.inputData(3,1:handles.inputSize),'br','xo');
-             
-             disp('lololol')
+    set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+    set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
 
-    %set the editboxes to empty to show they're ready for new input
+
+ handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+                                handles.inputData(3,1:handles.inputSize),...
+                                handles.desiredOutput(1,1:handles.inputSize),'br','xo');
+
+%set the editboxes to empty to show they're ready for new input
     set (handles.manualDatapointCreationX1Edit,'String','');
     set (handles.manualDatapointCreationX2Edit,'String','');
     set (handles.manualDatapointCreationClassEdit,'String','');
 
-    guidata(hObject,handles);
+guidata(hObject,handles);
         
+%==============
 function manualDatapointCreationX1Edit_Callback(hObject, eventdata, handles)
 
 manualX1Input = str2double(get(handles.manualDatapointCreationX1Edit,'String'));
 
-if isnumeric(manualX1Input)...
-   & ~isnan(manualX1Input)...
-   & isreal(manualX1Input)
-    
-        handles.manualX1Input = manualX1Input;
-
+if isnumeric(manualX1Input) && ~isnan(manualX1Input) && isreal(manualX1Input)
+    handles.manualX1Input = manualX1Input;
 else
-    errorMessage = msgbox('X1 Input must be numerical', 'Error', 'error');
+    msgbox('X1 Input must be numerical', 'Error', 'error');
     set (handles.manualDatapointCreationX1Edit, 'String', '');
 end
 
 guidata(hObject,handles);
-
             function manualDatapointCreationX1Edit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
@@ -1204,19 +1122,14 @@ function manualDatapointCreationX2Edit_Callback(hObject, eventdata, handles)
 
 manualX2Input = str2double(get(handles.manualDatapointCreationX2Edit,'String'));
 
-if isnumeric(manualX2Input)...
-   & ~isnan(manualX2Input)...
-   & isreal(manualX2Input)
-    
+if isnumeric(manualX2Input) && ~isnan(manualX2Input) && isreal(manualX2Input)
     handles.manualX2Input = manualX2Input;
-
 else
-    errorMessage = msgbox('X2 Input must be numerical', 'Error', 'error');
+    msgbox('X2 Input must be numerical', 'Error', 'error');
     set (handles.manualDatapointCreationX2Edit, 'String', '');
 end
 
 guidata(hObject,handles);
-
             function manualDatapointCreationX2Edit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
@@ -1226,21 +1139,19 @@ function manualDatapointCreationClassEdit_Callback(hObject, eventdata, handles)
 
 manualClassInput = str2double(get(handles.manualDatapointCreationClassEdit,'String'));
 
-if isnumeric(manualClassInput)...
-   && (manualClassInput == 1 || manualClassInput == -1)
-
+if isnumeric(manualClassInput) && (manualClassInput == 1 || manualClassInput == -1)
     handles.manualClassInput = manualClassInput;
 else
-    errorMessage = msgbox('Desired class must be +1 or -1', 'Error', 'error');
+    msgbox('Desired class must be +1 or -1', 'Error', 'error');
     set (handles.manualDatapointCreationClassEdit, 'String', '');
 end
 
 guidata(hObject,handles);
-
             function manualDatapointCreationClassEdit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+%==============
 
 % --- Executes on mouse press over axes background.
 function networkGraph_ButtonDownFcn(hObject, eventdata, handles)
@@ -1250,7 +1161,7 @@ function networkGraph_ButtonDownFcn(hObject, eventdata, handles)
 
 disp ('Hi')
 
-if (get(handles.datapointCreationToggle,'Value')==1) && (get(handles.graphDatapointCreationToggle,'Value')==1)
+if (get(handles.graphDatapointCreationToggle,'Value')==1)
    
     %axesParent = get(hObject,'Parent');
     tempInput = get(hObject,'CurrentPoint')
@@ -1274,5 +1185,4 @@ if (get(handles.datapointCreationToggle,'Value')==1) && (get(handles.graphDatapo
 end
 
 function classBToggle_Callback(hObject, eventdata, handles)
-
 function classAToggle_Callback(hObject, eventdata, handles)
