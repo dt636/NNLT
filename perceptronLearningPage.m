@@ -61,6 +61,7 @@ guidata(hObject, handles);
 %Initialise the perceptron with hard-coded data
 setHardCodedData(handles);
 
+%% initialise colour
 % make the colour selectors invisible to show they are not currently in use
 % create and initialise colour variables
     handles.notRunningColour = [.8 .8 .8];
@@ -79,22 +80,25 @@ setHardCodedData(handles);
     set (handles.classAPanel,'BackgroundColor',handles.classAColour);
     set (handles.classBPanel,'BackgroundColor',handles.classBColour);
     set (handles.thresholdPanel,'BackgroundColor',handles.thresholdColour);
+%%
 
-
-%initialise the graph toggle (an arbitrary choice between graph and manual
+%% initialise the graph toggle (an arbitrary choice between graph and manual
 %toggle) so only one datapoint creation option is ever available at a time
 set(handles.graphDatapointCreationToggle,'Value',1);
 graphDatapointCreationToggle_Callback(hObject, eventdata, handles);
+%%
 
 %stop the user from being able to use the slider until the program has classified
 %the data. 
 set (handles.stepSlider,'Enable','off');
 
+%% initialise handle variables
 handles.inputData = [];
 handles.inputSize = zeros;
 handles.originalDataForReset = [];
-handles.desiredOutput = [];
+%handles.desiredOutput = [];
 handles.dataPresent = false;
+handles.weights = [];
 
 handles.manualX1Input = 0;
 handles.manualX2Input = 0;
@@ -115,6 +119,7 @@ handles.correct = -1;
 %resetting the data to include the users created datapoints 
 %as well as originally loaded or generated datapoints
 handles.createdDatapoints = [];
+%%
 
 %set (handles.networkGraph, 'HitTest','off');
 %set (handles.networkGraph,'ButtonDownFcn',{@networkGraphDatapointCreation});
@@ -143,20 +148,17 @@ function setHardCodedData(handles)
     set (handles.desiredOutputLabel,'String','1');
     set (handles.actualOutputLabel,'String','');
     set (handles.learningRateEdit,'String','1');
-
 function setWeightLabels(hObject,handles)
     set (handles.w0InputLabel,'String',handles.weights(1));
     set (handles.w1InputLabel,'String',handles.weights(2));
     set (handles.w2InputLabel,'String',handles.weights(3));
-
 function setInputLabels(hObjects, handles, i)
     set (handles.x1InputLabel,'String',handles.inputData(2,i));
     set (handles.x2InputLabel,'String',handles.inputData(3,i)); 
-    
 function setOutputLabels(hObjects, handles, i)
-    set (handles.desiredOutputLabel,'String',handles.desiredOutput(i));
+    %set (handles.desiredOutputLabel,'String',handles.desiredOutput(i));
+    set (handles.desiredOutputLabel,'String',handles.inputData(4,i));
     set (handles.actualOutputLabel,'String',handles.actualOutput(i));
-    
 function clearAllLabels(hObject,handles)
     set (handles.w0InputLabel,'String','');
     set (handles.w1InputLabel,'String','');
@@ -173,8 +175,11 @@ function helpButton_Callback(hObject, eventdata, handles)
 
 function playButton_Callback(hObject, eventdata, handles)
 
+    
 %if no data has been entered then show an error message and exit the
 %playButton function
+x4 = handles.dataPresnt
+
 
 if (handles.dataPresent == false)
     msgbox('No data has been given. Please provide data.', 'Error: No data given', 'error');
@@ -364,89 +369,6 @@ else
     %ERROR
 end
 
-function displayThresholdBoundary(hObject, handles)
-
-    guidata(hObject,handles);
-global thresholdBoundary;
-%delete the current line so we can draw a new line
-delete(thresholdBoundary);
-
-%DRAW THE NEW LINE
-%======================================================
-%x1a and x1b are the minimum and maximum (respectively)
-%points on the x1 axis. The boundary line is defined
-%on the x1 axis as slightly smaller and bigger than x1a
-%and x1b
-    %min - 0.1 * min ==> min * (1 - 0.1) ==> min * 0.9
-    %max + 0.1 * max ==> max * (1 + 0.1) ==> max * 1.1
-    x1a = min(handles.inputData(2,:))* 0.9;
-    x1b = max(handles.inputData(2,:))* 1.1;
-
-%separate the weights for the next calculation
-    biasWeight = handles.weights(1);
-    x1Weight = handles.weights(2);
-    x2Weight = handles.weights(3);
-
-%the corresponding x2a and x2b points are calculated
-    x2a = (biasWeight*1 + x1Weight*x1a) / -x2Weight;
-    x2b = (biasWeight*1 + x1Weight*x1b) / -x2Weight;
-
-    %set (handles.networkGraph, 'XLim',[x1a x1b]);
-    %set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
-    
-%finally, draw the line on the axes
-    thresholdBoundary = plot([x1a; x1b], [x2a,x2b], 'k-', 'linewidth',0.5);
-    
-    guidata(hObject,handles);
-
-function plotData(hObject,handles)
-    
- %workable data has been uploaded
-    handles.dataPresent = true;
-
-    handles.inputSize = size(handles.inputData,2); %number of data points
-    handles.numInputVariables = size(handles.inputData,1); %number of input variables
-
-    %clear previous data from axes and plot new data on the axes
-    cla(handles.networkGraph);
-    reset(handles.networkGraph);
-
-    %set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-    %set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
-    
-    handles.plottedData = gscatter(handles.inputData(1,1:handles.inputSize),...
-            handles.inputData(2,1:handles.inputSize),...
-            handles.inputData(3,1:handles.inputSize),'br','xo');
-
-    if (handles.presetDataBoolean==true)
-        %To make classification calculations easier, turn all desired outputs
-        %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
-        %as [0,1] graphically but mathematically they will be different.
-        if (ismember([0 1], handles.inputData(3,:)))
-            for i = 1:handles.inputSize
-                handles.inputData(3,i) = 2*handles.inputData(3,i) - 1;
-            end
-        end
-    end
-    
-    %separate the desired output classification and remove it from the input data
-    handles.desiredOutput = handles.inputData(3,:);
-    handles.inputData(3,:)=[];
-    
-    %add the bias inputs to the data
-    handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
-    
-    handles.weights=randn(handles.numInputVariables,1);
-    guidata(hObject,handles);
-    
-    %display new weights on the GUI
-    setWeightLabels(hObject,handles);
-    
-    hold on;
-    displayThresholdBoundary(hObject,handles);
-
-    guidata(hObject,handles);
-    
 function stepThroughButton_Callback(hObject, eventdata, handles)
 
 %if no data has been entered then show an error message and exit the
@@ -684,16 +606,112 @@ end
 guidata(hObject,handles);
 
 function stopButton_Callback(hObject, eventdata, handles)
+       
+function displayThresholdBoundary(hObject, handles)
+
+guidata(hObject,handles);
+global thresholdBoundary;
+%delete the current line so we can draw a new line
+delete(thresholdBoundary);
+
+%DRAW THE NEW LINE
+%======================================================
+%x1a and x1b are the minimum and maximum (respectively)
+%points on the x1 axis. The boundary line is defined
+%on the x1 axis as slightly smaller and bigger than x1a
+%and x1b
+    %min - 0.1 * min ==> min * (1 - 0.1) ==> min * 0.9
+    %max + 0.1 * max ==> max * (1 + 0.1) ==> max * 1.1
+    x1a = min(handles.inputData(2,:))* 0.9;
+    x1b = max(handles.inputData(2,:))* 1.1;
+
+    %% create weights and display them on the GUI
+    if isempty(handles.weights)
+       handles.weights=randn(3,1); %handles.numInputVariables = size(handles.inputData,1);
+       setWeightLabels(hObject,handles);
+    end
+    %%      
+%separate the weights for the next calculation
+    biasWeight = handles.weights(1);
+    x1Weight = handles.weights(2);
+    x2Weight = handles.weights(3);
+
+%the corresponding x2a and x2b points are calculated
+    x2a = (biasWeight*1 + x1Weight*x1a) / -x2Weight;
+    x2b = (biasWeight*1 + x1Weight*x1b) / -x2Weight;
+
+    %set (handles.networkGraph, 'XLim',[x1a x1b]);
+    %set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
+    
+%finally, draw the line on the axes
+    thresholdBoundary = plot([x1a; x1b], [x2a,x2b], 'k-', 'linewidth',0.5);
+    
+    guidata(hObject,handles);
+
+%plotData isn't and shouldn't currently be called
+function plotData(hObject,handles)
+    
+ %workable data has been uploaded
+    handles.dataPresent = true;
+
+    %number of data points
+    handles.inputSize = size(handles.inputData,2); 
+    
+    %add the bias inputs to the data
+        handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
+    
+    %clear previous data from axes and plot new data on the axes
+    cla(handles.networkGraph);
+    reset(handles.networkGraph);
+
+    set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+    set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
+    
+%     handles.plottedData = gscatter(handles.inputData(1,1:handles.inputSize),...
+%             handles.inputData(2,1:handles.inputSize),...
+%             handles.inputData(3,1:handles.inputSize),'br','xo');
+        
+        handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+            handles.inputData(3,1:handles.inputSize),...
+            handles.inputData(4,1:handles.inputSize),'br','xo');
+
+    %To make classification calculations easier, turn all desired outputs
+    %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
+    %as [0,1] graphically but mathematically they will be different.
+%     if (handles.presetDataBoolean==true) && (ismember([0], handles.inputData(3,:)))
+%         handles.inputData(3,:) = 2*handles.inputData(3,:) - 1;
+%     end
+    if (handles.presetDataBoolean==true) && (ismember([0], handles.inputData(4,:)))
+        handles.inputData(4,:) = 2*handles.inputData(4,:) - 1;
+    end
+    
+    %separate the desired output classification and remove it from the input data
+%     handles.desiredOutput = handles.inputData(3,:);
+%     handles.inputData(3,:)=[];
+    
+    %add the bias inputs to the data
+    %handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
+    
+    %'3' can be replaced with handles.numInputVariables = size(handles.inputData,1);
+    handles.weights=randn(3,1);
+    guidata(hObject,handles);
+    
+    %display new weights on the GUI
+    setWeightLabels(hObject,handles);
+    
+    hold on;
+    displayThresholdBoundary(hObject,handles);
+
+    guidata(hObject,handles);
 
 function loadPresetDataButton_Callback(hObject, eventdata, handles)
 
 %Get the filename and pathname for files of .mat type
 [filename, pathname] = uigetfile('*.mat', 'Load .mat data');
 
-%If the file is empty
+%If the file is not empty
 if filename ~= 0
-
-    %load the data stored in the pathname
+    %% data entry
         handles.inputData = load(fullfile(pathname, filename));
     
     %The data loaded SHOULD have ONE field name, i.e. [1x1 struct] 
@@ -703,57 +721,236 @@ if filename ~= 0
     
     %retrieve the input data from the [1x1 struct]
         handles.inputData = handles.inputData.(name{1});
+    %%
         
-        %store the originally loaded data so it can be reset later
-        handles.originalDataForReset = handles.inputData;
-        
-        handles.presetDataBoolean = true;
-        clearAllLabels(hObject,handles);
-        enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
-        
-        %%%%%%%
-        set (handles.dataTable, 'Data', handles.inputData');
-        a = handles.inputData
-        
-        %=======
-        handles.correct = -1;
-        handles.initialStepThroughComplete = false;
-        
-        guidata(hObject,handles);
+    %check if file is empty and if data is valid
+    if isempty(handles.inputData)
+        msgbox('The file loaded is empty. Please load a non-empty file','Error: Empty file','error');
+        return;
+    else
+        %if data is valid
+            %% data is present
+            %workable data has been uploaded
+            handles.dataPresent = true;
+            %%
 
+            %% add ones, store as original data, show data on GUI table
+                %update number of data points and add biases
+                handles.inputSize = size(handles.inputData,2); 
+                handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
+                
+                %store the originally loaded data so it can be reset later
+                handles.originalDataForReset = handles.inputData;
+                
+                %load the data into the GUI table
+                set (handles.dataTable, 'Data', handles.inputData');
+            %%
 
-        plotData(hObject,handles);
+            %% create weights and display them on the GUI
+                handles.weights=randn(3,1); %handles.numInputVariables = size(handles.inputData,1);
+                setWeightLabels(hObject,handles);
+            %%
+
+            %% clear labels and data then plot
+                %clear labels and previous data from axes and plot new data on the axes
+                clearAllLabels(hObject,handles);
+                cla(handles.networkGraph);
+                reset(handles.networkGraph);
+
+                set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+                set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
+
+                handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+                                                handles.inputData(3,1:handles.inputSize),...
+                                                handles.inputData(4,1:handles.inputSize),'br','xo');
+                hold on;
+                guidata(hObject,handles);
+                displayThresholdBoundary(hObject,handles);
+            %%
+                                            
+            %% [0,1] => [-1,+1]
+                %To make classification calculations easier, turn all desired outputs
+                %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
+                %as [0,1] graphically but mathematically they will be different.
+                handles.presetDataBoolean = true;
+                if (handles.presetDataBoolean==true) && (ismember([0], handles.inputData(4,:)))
+                    handles.inputData(4,:) = 2*handles.inputData(4,:) - 1;
+                end
+            %%
+
+            %% unclassified, step through uninitialised, erase created data
+                %the data hasn't yet been classified or step through initiated
+                handles.correct = -1;
+                handles.initialStepThroughComplete = false;
+
+                %all previously created datapoints must be erased
+                handles.createdDatapoints = [];
+            %%
+
+            %% enable interactions with GUI
+                enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
+            %%
+
+            guidata(hObject,handles);
+        %else
+            %msgbox('Data invalid','Error: Data invalid','error');
+            %return;
+        %end
+    end
 end
     
 function generateDatasetButton_Callback(hObject, eventdata, handles)
 
-%NEEDS A BETTER INPUT METHOD I.E. [X1 X2] FOR MEAN AND STD
-  title = 'Generate a dataset';
-      prompt{1} = 'Set Class A (+1) dataset size:';
-      prompt{2} = 'Set Class B (-1) dataset size:';
-      prompt{3} = 'Set Class A X1 Mean:';
-      prompt{4} = 'Set Class A X2 Mean:';
-      prompt{5} = 'Set Class A X1 Standard Deviation:';
-      prompt{6} = 'Set Class A X2 Standard Deviation:';
-      prompt{7} = 'Set Class B X1 Mean:';
-      prompt{8} = 'Set Class B X2 Mean:';
-      prompt{9} = 'Set Class B X1 Standard Deviation:';
-      prompt{10} = 'Set Class B X2 Standard Deviation:';
-     
-     %given example{'50','50','[5.5 5.0]','[0.5 1.0]','[2.5 3.0]','[0.3 0.7]'};
-     %suggested example{'50','50','[0.55 0.50]','[0.05 0.1]','[0.25 0.30]','[0.03 0.07]'};
-      default_ans = {'50','50','5.5','5.0','0.5', '1.0',...
-                     '2.5', '3.0','0.3', '0.7'};
+ %% data entry
+title = 'Generate a dataset';
+prompt{1} = 'Set Class A (+1) dataset size:';
+prompt{2} = 'Set Class B (-1) dataset size:';
+prompt{3} = 'Set Class A X1 Mean:';
+prompt{4} = 'Set Class A X2 Mean:';
+prompt{5} = 'Set Class A X1 Standard Deviation:';
+prompt{6} = 'Set Class A X2 Standard Deviation:';
+prompt{7} = 'Set Class B X1 Mean:';
+prompt{8} = 'Set Class B X2 Mean:';
+prompt{9} = 'Set Class B X1 Standard Deviation:';
+prompt{10} = 'Set Class B X2 Standard Deviation:';
+      
+%given example{'50','50','[5.5 5.0]','[0.5 1.0]','[2.5 3.0]','[0.3 0.7]'};
+%suggested example{'50','50','[0.55 0.50]','[0.05 0.1]','[0.25 0.30]','[0.03 0.07]'};
+default_ans = {'50','50','5.5','5.0','0.5', '1.0',...
+             '2.5', '3.0','0.3', '0.7'};
 
-         %ERROR PROTECTION FOR INVALID DATA NEEDED
-         promptData = inputdlg(prompt,title,1,default_ans);
-         
-         %if the user cancels, exit the function
-         if isempty(promptData)
-             return;
-         end
+%ERROR PROTECTION FOR INVALID DATA NEEDED
+promptData = inputdlg(prompt,title,1,default_ans);
+ 
+%%
 
-%% Example sample
+ %if the user cancels, exit the function
+ if isempty(promptData)
+     return;
+ else
+     %if data is valid
+        %% data entry
+        sampleAsize = str2double(promptData(1));
+        sampleBsize = str2double(promptData(2));
+
+        sampleAmean = [str2double(promptData(3)), str2double(promptData(4))];
+        sampleAstdDev = [str2double(promptData(5)), str2double(promptData(6))];
+
+        sampleBmean = [str2double(promptData(7)), str2double(promptData(8))];
+        sampleBstdDev = [str2double(promptData(9)), str2double(promptData(10))];
+
+        handles.inputData  = [...
+            normallyDistributedSample( sampleAsize, sampleAmean, sampleAstdDev )' ...
+            normallyDistributedSample( sampleBsize, sampleBmean, sampleBstdDev )';...
+            ones(sampleAsize,1)' -ones(sampleBsize,1)'];
+        %%
+        %% ---------------------------------------------------------------------
+        % Randomly permute samples & class labels.
+        %
+        %   This is not really necessary, but done to illustrate that the order
+        %   in which observations are evaluated does not matter.
+        %
+        %randomOrder   = randperm( sampleAsize + sampleBsize );
+        %handles.inputData  = handles.inputData( :, randomOrder );
+        %handles.inputData
+        %Data.labels   = Data.labels(  randomOrder, : );
+        %% 
+        %% data is present
+        %workable data has been uploaded
+        handles.dataPresent = true;
+        %%
+
+        %% add ones, store as original data, show data on GUI table
+        %update number of data points and add biases
+        handles.inputSize = size(handles.inputData,2); 
+        handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
+        
+        %store the originally loaded data so it can be reset later
+        handles.originalDataForReset = handles.inputData;
+
+        %load the data into the GUI table
+        set (handles.dataTable, 'Data', handles.inputData');
+        %%
+
+        %% create weights and display them on the GUI
+        handles.weights=randn(3,1); %handles.numInputVariables = size(handles.inputData,1);
+        setWeightLabels(hObject,handles);
+        %%
+
+        %% clear labels and data then plot
+        clearAllLabels(hObject,handles);
+        cla(handles.networkGraph);
+        reset(handles.networkGraph);
+
+        set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+        set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
+
+        handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+                                        handles.inputData(3,1:handles.inputSize),...
+                                        handles.inputData(4,1:handles.inputSize),'br','xo');
+        hold on;
+        guidata(hObject,handles);
+        displayThresholdBoundary(hObject,handles);
+        %%
+        
+        %% [0,1] => [-1,+1]
+        %classes created don't need to be turned from [0,1] to [-1,+1]
+        handles.presetDataBoolean = false;
+        %%
+
+        %% unclassified, step through uninitialised, erase created data
+        handles.correct = -1;
+        handles.initialStepThroughComplete = false;
+
+        %all previously created datapoints must be erased
+        handles.createdDatapoints = [];
+        %%
+
+        %% enable interactions with the GUI
+        enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
+        %%
+
+        guidata(hObject,handles);
+    %else
+        %msgbox('Data invalid','Error: Data invalid','error');
+        %return;
+    %end
+ end
+      
+%%  title = 'Generate a dataset';
+%     prompt{1} = 'Set Class A and B dataset size [A B]:';
+%     prompt{2} = 'Set Class A mean [X1 X2]:';
+%     prompt{3} = 'Set Class A standard deviation [X1 X2]:';
+%     prompt{4} = 'Set Class B mean [X1 X2]:';
+%     prompt{5} = 'Set Class B standard deviation [X1 X2]:';
+%     
+%     default_ans = {'[50 50]','[5.5 5.0]','[0.5 1.0]','[2.5 3.0]','[0.3 0.7]'};
+%     
+%     promptData = inputdlg(prompt,title,1,default_ans);
+%     
+%     if isempty(promptData)
+%         return;
+%     else
+%         
+%         for i = 1:5
+%             sample(i) = str2double(regexp(promptData(i),'-?\d*','match'));
+%         end
+%             
+%         tempPromptData = textscan(fileID,'%s','delimiter','\n');
+%         extractedNums = regexp(stringData{i}, '-?\d*','match');
+%         
+%sampleAsize = str2double(promptData(1))
+     %sampleBsize = str2double(promptData(2))
+     %%cell2mat
+%       sampleAmean = str2num(promptData(3))
+%   	sampleAstdDev = str2num(promptData(4)) 
+%       sampleBmean = cell2mat(promptData(5))
+%    	sampleBstdDev = cell2mat(promptData(6))
+%         
+%         sampleAsize = str2double(
+%         
+%     end   
+% Example sample
 %     sampleAsize   = 30;
 %     sampleBsize   = 30;
 % 
@@ -763,61 +960,6 @@ function generateDatasetButton_Callback(hObject, eventdata, handles)
 %     sampleBmean   = [ 0.7 0.9 ]
 %     sampleBstdDev = [ 0.34 0.16 ]
 %%
-
-    sampleAsize = str2double(promptData(1));
-    sampleBsize = str2double(promptData(2));
-
-    sampleAmean = [str2double(promptData(3)), str2double(promptData(4))];
-   	sampleAstdDev = [str2double(promptData(5)), str2double(promptData(6))];
-    
-    sampleBmean = [str2double(promptData(7)), str2double(promptData(8))];
-    sampleBstdDev = [str2double(promptData(9)), str2double(promptData(10))];
-    
-%% IGNORE=========================================
-     %sampleAsize = str2double(promptData(1))
-     %sampleBsize = str2double(promptData(2))
-     %%cell2mat
-%       sampleAmean = str2num(promptData(3))
-%   	sampleAstdDev = str2num(promptData(4)) 
-%       sampleBmean = cell2mat(promptData(5))
-%    	sampleBstdDev = cell2mat(promptData(6))
-% ===============================================
-%%
-    handles.inputData  = [...
-        normallyDistributedSample( sampleAsize, sampleAmean, sampleAstdDev )' ...
-        normallyDistributedSample( sampleBsize, sampleBmean, sampleBstdDev )';...
-        ones(sampleAsize,1)' -ones(sampleBsize,1)'];
-    
-    %% ---------------------------------------------------------------------
-    % Randomly permute samples & class labels.
-    %
-    %   This is not really necessary, but done to illustrate that the order
-    %   in which observations are evaluated does not matter.
-    %
-    %randomOrder   = randperm( sampleAsize + sampleBsize );
-    %handles.inputData  = handles.inputData( :, randomOrder );
-    %handles.inputData
-    %Data.labels   = Data.labels(  randomOrder, : );
-    %% 
-
-    %store the originally loaded data so it can be reset later
-    handles.originalDataForReset = handles.inputData;
-
-    handles.presetDataBoolean = false;
-    cla(handles.networkGraph);
-    reset(handles.networkGraph);
-    clearAllLabels(hObject,handles);
-    
-    set (handles.dataTable, 'Data', handles.inputData');
-    
-
-    handles.correct = -1;
-    handles.initialStepThroughComplete = false;
-    enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
-        
-    guidata(hObject,handles);
-    
-    plotData(hObject,handles);
 
 function samples = normallyDistributedSample( sampleSize, sampleMean, sampleStdDev )
     %CODE TAKEN FROM:
@@ -842,29 +984,78 @@ function samples = normallyDistributedSample( sampleSize, sampleMean, sampleStdD
 
 function resetDatasetButton_Callback(hObject, eventdata, handles)
 if ~isempty(handles.inputData)
-    clearAllLabels(hObject,handles);
     
+    %% keep user created data?
     decision = questdlg('Would you like to keep all user created datapoints?', ...
         'Keep user created datapoints?', ...
         'Yes','No','No');
     
     switch decision
         case 'Yes'  %keep the user created data
-            handles.inputData = [handles.originalDataForReset handles.createdDatapoints];
+
+            %if preset data consists of [0,1] and user created data consists of
+            %[-1,+1], then plotting 0,1 and -1 will create a bugged plot so
+            %need to turn -1's to 0 so the data is consistent
+            if (ismember([-1], handles.createdDatapoints)) && (ismember([0],handles.originalDataForReset(4,:)))
+                handles.createdDatapoints(handles.createdDatapoints == -1) = 0;
+            end
+            
+            handles.inputData = [handles.originalDataForReset handles.createdDatapoints(2:4,:)];
         case 'No'   %reload data from when data was loaded
             handles.inputData = handles.originalDataForReset;
             handles.createdDatapoints = [];
     end
+    %%
     
-   plotData(hObject,handles);
+    %% clear labels and data 
+        clearAllLabels(hObject,handles);
+        cla(handles.networkGraph);
+        reset(handles.networkGraph);
+    %%
+
+    if ~isempty(handles.inputData)
     
-   handles.correct = -1;
-   handles.initialStepThroughComplete = false;
-   
-   %allow users to make changes to the learning process again
-   enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
+        %% data is present
+            %workable data has been uploaded
+            handles.dataPresent = true;
+        %%
+
+        %% create weights and display them on the GUI
+        handles.weights=randn(3,1); %handles.numInputVariables = size(handles.inputData,1);
+        setWeightLabels(hObject,handles);
+        %%
+        
+        %% show data in the GUI table
+        set (handles.dataTable, 'Data', handles.inputData');
+        %%
+        
+        %% plot data
+        set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+        set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
+        
+        %update number of data points
+        handles.inputSize = size(handles.inputData,2);  
+        handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+            handles.inputData(3,1:handles.inputSize),...
+            handles.inputData(4,1:handles.inputSize),'br','xo');
+        
+        hold on;
+        guidata(hObject,handles);
+        displayThresholdBoundary(hObject,handles);
+        %%
     
-   guidata(hObject,handles);
+        %% unclassified, step through uninitialised
+        %the data hasn't yet been classified or step through initiated
+        handles.correct = -1;
+        handles.initialStepThroughComplete = false;
+        %%
+
+        %% enable interactions with GUI
+                enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
+        %%
+        guidata(hObject,handles);
+    end
+    guidata(hObject,handles);
 end
 
 %======================
@@ -911,7 +1102,6 @@ function enableEditBoxesAndThresholdToggles(hObject,eventdata, handles)
     
     guidata(hObject,handles);
 %======================
-
 function notRunningColourChoice_Callback(hObject, eventdata, handles)
 
 handles.notRunningColour=uisetcolor;
@@ -922,7 +1112,6 @@ end
 
 set (handles.notRunningPanel,'BackgroundColor',handles.notRunningColour);
 guidata(hObject,handles);
-
 function processingColourChoice_Callback(hObject, eventdata, handles)
 
 handles.processingColour=uisetcolor;
@@ -933,7 +1122,6 @@ end
 
 set (handles.processingPanel,'BackgroundColor',handles.processingColour);
 guidata(hObject,handles);
-
 function completedColourChoice_Callback(hObject, eventdata, handles)
 
 handles.completedColour=uisetcolor;
@@ -944,7 +1132,6 @@ end
 
 set (handles.completedPanel,'BackgroundColor',handles.completedColour);
 guidata(hObject,handles);
-
 function classAColourChoice_Callback(hObject, eventdata, handles)
  
 handles.classAColour = uisetcolor;
@@ -955,7 +1142,6 @@ end
 
 set(handles.classAPanel,'BackgroundColor',handles.classAColour);
 guidata(hObject,handles);
-
 function classBColourChoice_Callback(hObject, eventdata, handles)
 
 handles.classBColour = uisetcolor;
@@ -966,7 +1152,6 @@ end
 
 set(handles.classBPanel,'BackgroundColor',handles.classBColour);
 guidata(hObject,handles);
-
 function thresholdBoundaryColourChoice_Callback(hObject, eventdata, handles)
     
 handles.thresholdColour = uisetcolor;
@@ -978,7 +1163,6 @@ end
 set(handles.thresholdPanel,'BackgroundColor',handles.thresholdColour);
 guidata(hObject,handles);  
 %========================
-
 function setSliderMaxValue(hObject, handles)
 
 if handles.inputSize ~= 0
@@ -994,7 +1178,6 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
 %=====================
-
 function learningRateEdit_Callback(hObject, eventdata, handles)
 
 learningRate = str2double(get(handles.learningRateEdit,'String'));
@@ -1012,7 +1195,6 @@ end
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 function iterationEdit_Callback(hObject, eventdata, handles)
 
 tempIteration = str2double(get(handles.iterationEdit,'String'));
@@ -1032,7 +1214,6 @@ end
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 function stepThroughEdit_Callback(hObject, eventdata, handles)
 
 if handles.dataPresent == true
@@ -1058,7 +1239,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 %==================
-
 function graphDatapointCreationToggle_Callback(hObject, eventdata, handles)
 
     %turn on graphical datapoint creation and turn off manual datapoint
@@ -1067,6 +1247,7 @@ function graphDatapointCreationToggle_Callback(hObject, eventdata, handles)
         
         set (handles.classAToggle,'Enable','on');
         set (handles.classBToggle,'Enable','on');
+        set (handles.addDatapoints,'Enable','on');
        
         set (handles.manualDatapointCreationX1Edit,'Enable','off');
         set (handles.manualDatapointCreationX2Edit,'Enable','off');
@@ -1075,7 +1256,6 @@ function graphDatapointCreationToggle_Callback(hObject, eventdata, handles)
     end
 
 guidata(hObject, handles);
-
 function manualDatapointCreationToggle_Callback(hObject, eventdata, handles)
 
     %turn on manual datapoint creation and turn off graphical datapoint
@@ -1089,43 +1269,10 @@ function manualDatapointCreationToggle_Callback(hObject, eventdata, handles)
         
         set (handles.classAToggle,'Enable','off');
         set (handles.classBToggle,'Enable','off');
+        set (handles.addDatapoints,'Enable','off');
     end
 
     guidata(hObject, handles);
-
-function manualDatapointCreationCompleteButton_Callback(hObject, eventdata, handles)
-
-%append the new datapoint to the input data, desiredOutput, and
-%recalculate inputSize
-    handles.inputData = [handles.inputData [1; handles.manualX1Input; handles.manualX2Input]];
-    handles.desiredOutput = [handles.desiredOutput handles.manualClassInput];
-    handles.inputSize = size(handles.inputData,2);
-
-%append the new datapoint to createdDatapoints. Allows the user the
-%option of including manually created data when reseting datapoints
-    handles.createdDatapoints = [handles.createdDatapoints [handles.manualX1Input; handles.manualX2Input; handles.manualClassInput]];
-
-%referesh the data on the graph
-%%%%%COULD BE DONE BY JUST ADDING THE NEW DATAPOINTS ONLY RATHER THAN
-%REPLOTTING ALL DATAPOINTS
-    cla(handles.networkGraph);
-    reset(handles.networkGraph);
-
-    set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-    set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
-
-
- handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-                                handles.inputData(3,1:handles.inputSize),...
-                                handles.desiredOutput(1,1:handles.inputSize),'br','xo');
-
-%set the editboxes to empty to show they're ready for new input
-    set (handles.manualDatapointCreationX1Edit,'String','');
-    set (handles.manualDatapointCreationX2Edit,'String','');
-    set (handles.manualDatapointCreationClassEdit,'String','');
-
-guidata(hObject,handles);
-        
 %==============
 function manualDatapointCreationX1Edit_Callback(hObject, eventdata, handles)
 
@@ -1143,7 +1290,6 @@ guidata(hObject,handles);
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 function manualDatapointCreationX2Edit_Callback(hObject, eventdata, handles)
 
 manualX2Input = str2double(get(handles.manualDatapointCreationX2Edit,'String'));
@@ -1160,7 +1306,6 @@ guidata(hObject,handles);
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 function manualDatapointCreationClassEdit_Callback(hObject, eventdata, handles)
 
 manualClassInput = str2double(get(handles.manualDatapointCreationClassEdit,'String'));
@@ -1180,8 +1325,57 @@ end
 %==============
 
 function classBToggle_Callback(hObject, eventdata, handles)
-function classAToggle_Callback(hObject, eventdata, handles)
+function classAToggle_Callback(hObject, eventdata, handles)  
+    
+    
+function manualDatapointCreationCompleteButton_Callback(hObject, eventdata, handles)
 
+%% data entry
+
+    %append the new datapoint to createdDatapoints. Allows the user the
+    %option of including manually created data when reseting datapoints
+    handles.createdDatapoints = [handles.createdDatapoints [1; handles.manualX1Input; handles.manualX2Input; handles.manualClassInput]];
+
+    %append the new datapoint to the input data and
+    %recalculate inputSize
+    handles.inputData = [handles.inputData [1; handles.manualX1Input; handles.manualX2Input; handles.manualClassInput]];
+    %handles.desiredOutput = [handles.desiredOutput handles.manualClassInput];
+    handles.inputSize = size(handles.inputData,2);
+%%
+
+%% data is present
+%workable data has been uploaded
+handles.dataPresent = true;
+%%
+
+%% show data in the GUI table
+set (handles.dataTable, 'Data', handles.inputData');
+%%
+
+%% clear labels and data then plot
+cla(handles.networkGraph);
+reset(handles.networkGraph);
+
+set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
+
+%SET NEW WEIGHTS AND DRAW THRESHOLD TOO
+handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+                                handles.inputData(3,1:handles.inputSize),...
+                                handles.inputData(4,1:handles.inputSize),'br','xo');            
+hold on;
+guidata(hObject,handles);
+displayThresholdBoundary(hObject,handles);
+%%
+
+%% set the editboxes to empty to show they're ready for new input
+    set (handles.manualDatapointCreationX1Edit,'String','');
+    set (handles.manualDatapointCreationX2Edit,'String','');
+    set (handles.manualDatapointCreationClassEdit,'String','');
+%%
+
+guidata(hObject,handles);
+        
 % --- Executes on button press in addDatapoints.
 function addDatapoints_Callback(hObject, eventdata, handles)
 % hObject    handle to addDatapoints (see GCBO)
@@ -1190,8 +1384,11 @@ function addDatapoints_Callback(hObject, eventdata, handles)
 
 if (get(handles.graphDatapointCreationToggle,'Value')==1)
 
+    %% data entry
     [X1,X2] = getpts(handles.networkGraph);
-
+    %%
+    
+    %% get class
     if (get(handles.classAToggle,'Value')==1)
         tempDesiredOutput = 1;
     elseif (get(handles.classBToggle,'Value')==1)
@@ -1199,23 +1396,51 @@ if (get(handles.graphDatapointCreationToggle,'Value')==1)
     else
         %Error
     end
+    %%
+    
+    %% data is present
+    %workable data has been uploaded
+    handles.dataPresent = true;
+    %%
     
     if handles.dataPresent == true
         
-        handles.inputData = [handles.inputData [ones(1,length(X1'));X1';X2']];
-        handles.desiredOutput = [handles.desiredOutput [ones(1,length(X1'))*tempDesiredOutput]];
-        
-    elseif handles.dataPresent == false
+        %% data entry
+        %append the new datapoints to createdDatapoints. Allows the user the
+        %option of including manually created data when reseting datapoints
+        handles.createdDatapoints = [handles.createdDatapoints [ones(1,length(X1'));X1';X2';[ones(1,length(X1'))*tempDesiredOutput]]];
         
         %append the created datapoints to the input data
-    %need to create a vector of 1's and multiply by the class (+1 or -1)
-    %to create a row vector of +1 or -1 to append to the input data
-    handles.inputData = [handles.inputData [X1';X2';ones(1,length(X1'))*tempDesiredOutput]];
+        %need to create a vector of 1's and multiply by the class (+1 or -1)
+        %to create a row vector of +1 or -1 to append to the input data
+        handles.inputData = [handles.inputData [ones(1,length(X1'));X1';X2';[ones(1,length(X1'))*tempDesiredOutput]]];
+        %handles.desiredOutput = [handles.desiredOutput [ones(1,length(X1'))*tempDesiredOutput]];
+        handles.inputSize = size(handles.inputData,2);
+        %%
+        
+        %% show data in the GUI table
+        set (handles.dataTable, 'Data', handles.inputData');
+        %%
+        
+        %% clear labels and data then plot
+        cla(handles.networkGraph);
+        reset(handles.networkGraph);
 
+        set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+        set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
+
+        %SET NEW WEIGHTS AND DRAW THRESHOLD TOO
+        handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+                                        handles.inputData(3,1:handles.inputSize),...
+                                        handles.inputData(4,1:handles.inputSize),'br','xo');            
+        hold on;
+        guidata(hObject,handles);
+        displayThresholdBoundary(hObject,handles);
+        %%
+        
+        
+    elseif handles.dataPresent == false
+        handles.inputData = [handles.inputData [X1';X2';ones(1,length(X1'))*tempDesiredOutput]];
     end
-    
-    
-    
-    
-    
+    guidata(hObject,handles);
 end
