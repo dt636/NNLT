@@ -22,7 +22,7 @@ function varargout = perceptronLearningPage(varargin)
 
 % Edit the above text to modify the response to help perceptronLearningPage
 
-% Last Modified by GUIDE v2.5 14-Mar-2017 19:05:48
+% Last Modified by GUIDE v2.5 23-Mar-2017 12:29:39
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -43,7 +43,6 @@ else
 end
 % End initialization code - DO NOT EDIT
 
-
 % --- Executes just before perceptronLearningPage is made visible.
 function perceptronLearningPage_OpeningFcn(hObject, eventdata, handles, varargin)
 % This function has no output args, see OutputFcn.
@@ -58,76 +57,21 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 
-%Initialise the perceptron with hard-coded data
-setHardCodedData(handles);
+%initialise handle variables, colour and graph toggle
+resetHandleVariables(hObject,eventdata,handles);
+    handles = guidata(hObject);
+    
+setDefaultColours(hObject,handles);
+    handles = guidata(hObject);
 
-%% initialise colour
-% make the colour selectors invisible to show they are not currently in use
-% create and initialise colour variables
-    handles.notRunningColour = [.8 .8 .8];
-    handles.processingColour = [1 1 0];
-    handles.completedColour = [0 1 0];
-
-    handles.classAColour = [0 0 1];
-    handles.classBColour = [1 0 0];
-    handles.thresholdColour = [0 0 0];
-
-    set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
-    set (handles.notRunningPanel,'BackgroundColor',handles.notRunningColour);
-    set (handles.processingPanel,'BackgroundColor',handles.processingColour);
-    set (handles.completedPanel,'BackgroundColor',handles.completedColour);
-
-    set (handles.classAPanel,'BackgroundColor',handles.classAColour);
-    set (handles.classBPanel,'BackgroundColor',handles.classBColour);
-    set (handles.thresholdPanel,'BackgroundColor',handles.thresholdColour);
-%%
-
-%% initialise the graph toggle (an arbitrary choice between graph and manual
-%toggle) so only one datapoint creation option is ever available at a time
+%only one data creation method available at a time
 set(handles.graphDatapointCreationToggle,'Value',1);
 graphDatapointCreationToggle_Callback(hObject, eventdata, handles);
-%%
-
-%stop the user from being able to use the slider until the program has classified
-%the data. 
-set (handles.stepSlider,'Enable','off');
-
-%% initialise handle variables
-handles.inputData = [];
-handles.inputSize = zeros;
-handles.originalDataForReset = [];
-handles.dataPresent = false;
-handles.weights = [];
-handles.learningRate = 1;
-
-handles.manualX1Input = 0;
-handles.manualX2Input = 0;
-handles.manualClassInput = 0;
-
-handles.presetDataBoolean = false;
-
-handles.initialStepThroughComplete = false;
-handles.numDatapointsToCycleThrough = 0;
-handles.maxIteration = 0;
-handles.currentIteration = 0;
-handles.minBlockDatapoints = 0;
-handles.maxBlockDatapoints = 0;
-
-handles.correct = -1;
-
-handles.playRunning = false;
-handles.stopFlag = false;
-
-%handle for appending to handles.inputData in ManualDatapointCreationCompleteButton_Callback
-%resetting the data to include the users created datapoints 
-%as well as originally loaded or generated datapoints
-handles.createdDatapoints = [];
-%%
-
-%set (handles.networkGraph, 'HitTest','off');
-%set (handles.networkGraph,'ButtonDownFcn',{@networkGraphDatapointCreation});
-%set (gca, 'buttondownfcn',{@networkGraph_ButtonDownFcn,handles})
+    handles = guidata(hObject);
+    
 guidata(hObject,handles);
+    
+%%
 
 % UIWAIT makes perceptronLearningPage wait for user response (see UIRESUME)
 % uiwait(handles.plpf);
@@ -142,24 +86,59 @@ function varargout = perceptronLearningPage_OutputFcn(hObject, eventdata, handle
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
-function setHardCodedData(handles)
-    set (handles.x1InputLabel,'String','0.1');
-    set (handles.x2InputLabel,'String','0.3');
-    set (handles.w0InputLabel,'String','0.3');
-    set (handles.w1InputLabel,'String','3.1');
-    set (handles.w2InputLabel,'String','0.5');
-    set (handles.desiredOutputLabel,'String','1');
-    set (handles.actualOutputLabel,'String','');
-    set (handles.learningRateEdit,'String','1');
+function resetHandleVariables(hObject,eventdata,handles)
+
+handles.inputData = [];
+handles.inputSize = zeros;
+handles.originalDataForReset = [];
+handles.createdDatapoints = [];
+handles.weights = [];
+handles.learningRate = 1;
+set (handles.learningRateEdit,'String','1');
+
+handles.manualX1Input = 0;
+handles.manualX2Input = 0;
+handles.manualClassInput = 0;
+
+handles.numDatapointsToCycleThrough = 0;
+handles.maxIteration = 0;
+handles.currentIteration = 0;
+handles.minBlockDatapoints = 0;
+handles.maxBlockDatapoints = 0;
+
+handles.play = false;
+handles.playRunning = false;
+handles.stopFlag = false;
+
+%handle for appending to handles.inputData in ManualDatapointCreationCompleteButton_Callback
+%resetting the data to include the users created datapoints 
+%as well as originally loaded or generated datapoints
+handles.createdDatapoints = [];
+
+handles.dataPresent = false;
+handles.initialStepThroughComplete = false;
+
+handles.correct = -1;
+
+set (handles.dataTable, 'Data', handles.inputData');
+clearAllLabels(hObject,handles)
+cla(handles.networkGraph);
+reset(handles.networkGraph);
+
+enableEditBoxesAndThresholdToggles(hObject,eventdata, handles);
+
+resetSliderData(hObject,handles);
+    handles = guidata(hObject);
+    
+guidata(hObject,handles);
 function setWeightLabels(hObject,handles)
     set (handles.w0InputLabel,'String',handles.weights(1));
     set (handles.w1InputLabel,'String',handles.weights(2));
     set (handles.w2InputLabel,'String',handles.weights(3));
-function setInputLabels(hObjects, handles, i)
+function setInputLabels(hObject, handles, i)
     set (handles.x1InputLabel,'String',handles.inputData(2,i));
     set (handles.x2InputLabel,'String',handles.inputData(3,i)); 
-function setOutputLabels(hObjects, handles, i)
-    %set (handles.desiredOutputLabel,'String',handles.desiredOutput(i));
+function setOutputLabels(hObject, handles, i)
     set (handles.desiredOutputLabel,'String',handles.inputData(4,i));
     set (handles.actualOutputLabel,'String',handles.actualOutput(i));
 function clearAllLabels(hObject,handles)
@@ -171,10 +150,118 @@ function clearAllLabels(hObject,handles)
     set (handles.weightedSumLabel,'String','');
     set (handles.desiredOutputLabel,'String','');
     set (handles.actualOutputLabel,'String','');
+function setDefaultColours(hObject,handles)
+% make the colour selectors invisible to show they are not currently in use
+% create and initialise colour variables
+handles.notRunningColour = [.8 .8 .8];
+handles.processingColour = [1 1 0];
+handles.completedColour = [0 1 0];
 
-function backToMainMenuButton_Callback(hObject, eventdata, handles)
+handles.classAColour = [0 0 1];
+handles.classBColour = [1 0 0];
+handles.thresholdColour = [0 0 0];
 
-function helpButton_Callback(hObject, eventdata, handles)
+set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
+set (handles.notRunningPanel,'BackgroundColor',handles.notRunningColour);
+set (handles.processingPanel,'BackgroundColor',handles.processingColour);
+set (handles.completedPanel,'BackgroundColor',handles.completedColour);
+
+set (handles.classAPanel,'BackgroundColor',handles.classAColour);
+set (handles.classBPanel,'BackgroundColor',handles.classBColour);
+set (handles.thresholdPanel,'BackgroundColor',handles.thresholdColour);
+
+set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
+set (handles.desiredOutputLabel,'BackgroundColor','w');
+
+plotData(hObject,handles);
+
+guidata(hObject,handles);
+function resetSliderData(hObject,handles)
+    
+handles.playCount = 0;
+handles.playHistory = [];
+handles.iterationHistory = [];
+handles.datapointHistory = [];
+handles.weightHistory = [];
+
+%stop the user from being able to use the slider until the program has classified
+%the data. 
+set (handles.stepSlider,'Enable','off');
+
+guidata(hObject,handles);
+function enableSlider(hObject,handles)
+    
+set (handles.stepSlider,'Enable', 'on');
+set (handles.stepSlider,'Min', 1);
+set (handles.stepSlider,'Max', length(handles.weightHistory));
+set (handles.stepSlider,'Value', 1);
+set (handles.stepSlider,'SliderStep', [1/length(handles.weightHistory), 1/length(handles.weightHistory)]);
+
+guidata(hObject,handles);
+function plotData(hObject,handles)
+
+if ~isempty(handles.inputData)
+    
+    cla(handles.networkGraph);
+    reset(handles.networkGraph);
+    
+    set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
+    set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
+
+    handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
+                                    handles.inputData(3,1:handles.inputSize),...
+                                    handles.inputData(4,1:handles.inputSize),[handles.classAColour; handles.classBColour],'xo');
+    hold on;
+    displayThresholdBoundary(hObject,handles);
+        handles = guidata(hObject);
+
+    guidata(hObject,handles);
+end
+function compareClassAndAdjustWeights(hObject, handles, weightedSum, error)
+% compare actual with desired, classify correct or not
+if any(handles.actualOutput ~=handles.inputData(4,:))
+    handles.correct = -1;
+end
+
+%adjust weights if any points are incorrectly classified
+if handles.correct == -1
+    
+    %if play is running use all inputs, if not, step is running so use min
+    %and max block sizes
+    if handles.play == true
+        minI = 1;
+        maxI = handles.inputSize;
+    else
+        minI = handles.minBlockDatapoints;
+        maxI = handles.maxBlockDatapoints;
+    end
+    
+    %for each datapoint
+    for i = minI:maxI
+
+%                     if handles.stopFlag == true
+%                         break;
+%                     end
+
+        highlightDatapointAndSetLabels(hObject,handles,weightedSum,i)
+
+        %change weights of the datapoint if actual =/= desired
+        if handles.actualOutput(1,i) ~= handles.inputData(4,i)
+            handles.weights = handles.weights + handles.learningRate*error(i)*handles.inputData(1:3,i);
+            %pause to allow user to see threshold boundary move
+            pause(0.001);
+            if handles.play == true
+                displayThresholdBoundary(hObject, handles);
+            end
+            setWeightLabels(hObject,handles);  
+        end
+        %store data and get updated copy
+        stepSliderDataGather(hObject,handles,i);
+            handles = guidata(hObject);
+    end
+end
+
+guidata(hObject,handles);
 
 function playButton_Callback(hObject, eventdata, handles)
 
@@ -190,22 +277,26 @@ elseif (handles.dataPresent == true)
     
     %function is running
     handles.playRunning = true;
+    %Play is running, therefore play = true
+    handles.play = true;
     
-%% get and set variables
+    %% get and set variables
     handles.maxIteration = str2double(get(handles.iterationEdit,'String'));
     handles.currentIteration = 0;
     handles.correct = -1;
-%%
-%%  set background colours for processing and to show the data isn't classified yet
+    % increment the number of play throughs to achieve a correct
+    % classification
+    handles.playCount = handles.playCount + 1;
+    %%
+    %%  set background colours for processing and to show the data isn't classified yet
     set (handles.weightedSumLabel,'BackgroundColor',handles.processingColour);
     set (handles.desiredOutputLabel,'BackgroundColor','w');
-%%
-%% prevent the user from interacting with most GUI functions
-    disableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
-%%
+    %%
 
-%while the data hasn't been classified correctly and there is still
-%time to compute the classification
+    disableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
+
+    %while the data hasn't been classified correctly and there is still
+    %time to compute the classification
     while (handles.correct == -1) && (handles.currentIteration < handles.maxIteration)
 
         
@@ -224,51 +315,16 @@ elseif (handles.dataPresent == true)
 
         if (get(handles.stepToggle,'Value')== 1) 
             %sign the weighted sum to get the actual output
-            w = handles.weights' 
-            inp = handles.inputData(1:3,:)
             weightedSum = handles.weights' * handles.inputData(1:3,:);
             handles.actualOutput = sign(weightedSum);
-            
-            set(handles.dataTable,'Data',[handles.inputData' handles.actualOutput']);
 
             %error is difference between desired and actual
             error = handles.inputData(4,:) - handles.actualOutput;
+            
+            set(handles.dataTable,'Data',[handles.inputData' handles.actualOutput']);
 
-            % compare actual with desired, classify correct or not
-            if any(handles.actualOutput ~=handles.inputData(4,:))
-                handles.correct = -1;
-            end
-
-            %adjust weights if any points are incorrectly classified
-            if handles.correct == -1
-
-                %for each datapoint, check if its actual output matches the desired
-                %output. If not, adjust its weight accordingly.
-                for i = 1:handles.inputSize
-
-%                     if handles.stopFlag == true
-%                         break;
-%                     end
-                    
-                    highlightDatapointAndSetLabels(hObject,handles,weightedSum,i)
-                
-                    %change weights if actual =/= desired
-                    if handles.actualOutput(1,i) ~= handles.inputData(4,i)
-
-                        handles.weights = handles.weights + handles.learningRate*error(i)*handles.inputData(1:3,i);
-
-                        %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
-
-                        %arbitrary pause to allow the user to see the change in
-                        %the threshold boundary as it moves around
-                        pause(0.001);
-                        displayThresholdBoundary(hObject, handles);
-
-                        setWeightLabels(hObject,handles);  
-                    end
-                    %delete(handles.highlightedPoint);
-                end
-            end
+            compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
+                handles = guidata(hObject);
 
         elseif (get(handles.sigmoidToggle,'Value')==1)
 
@@ -281,38 +337,15 @@ elseif (handles.dataPresent == true)
             handles.actualOutput(handles.actualOutput < 0.5) = -1;
             handles.actualOutput(handles.actualOutput >= 0.5) = 1;
 
-            if any(handles.actualOutput ~=handles.inputData(4,:))
-                handles.correct = -1;
-            end
-
-            %if any datapoint is incorrectly classified, adjust the weights
-            if handles.correct == -1
-                for i = 1:handles.inputSize
-                    
-                    highlightDatapointAndSetLabels(hObject,handles,weightedSum,i)
-                    
-                    %change weights if actual =/= desired
-                    if handles.actualOutput(1,i) ~= handles.inputData(4,i)
-
-                        handles.weights = handles.weights + handles.learningRate*error(i)*handles.inputData(1:3,i);
-
-                        %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
-
-                        %arbitrary pause to allow the user to see the change in
-                        %the threshold boundary as it moves around
-                        pause(0.001);
-                        displayThresholdBoundary(hObject, handles);
-
-                        setWeightLabels(hObject,handles);  
-                    end
-                    %delete(handles.highlightedPoint);
-                end
-            end
+            compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
+                handles = guidata(hObject);
         else
-            %ERROR
+            %Should not reach this stage. elseif's used to be specific with
+            %options available
         end
     end
 
+    %final threshold boundary drawn
     pause(0.01);
     displayThresholdBoundary(hObject, handles);
 
@@ -320,57 +353,82 @@ elseif (handles.dataPresent == true)
     set (handles.desiredOutputLabel,'BackgroundColor',handles.completedColour);
     set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
     %%
+
+    %% enable slider if data is correctly classified
+    if handles.correct == 1
+        enableSlider(hObject,handles);
+    end
+    
+    if handles.correct == -1 && handles.currentIteration >= handles.maxIteration
+         
+        decision = questdlg('The data has not yet been classified correctly. Continue classifying?', ...
+        'Continue classifying?', ...
+        'Yes','No','No');
+
+        switch decision
+            case 'Yes'
+                % increment the number of play throughs to achieve a correct
+                % classification
+                handles.playCount = handles.playCount + 1;
+                handles.currentIteration = 0;
+
+            case 'No'  
+                handles.correct = 1;
+                enableSlider(hObject,handles);
+        end
+    end
     
     handles.playRunning = false;
 else
-    %ERROR
+    %Should not reach this stage. elseif's used to be specific with options
+    %available
 end
 
 function stepThroughButton_Callback(hObject, eventdata, handles)
 
-%if no data has been entered then show an error message and exit the
-%playButton function
 if (handles.dataPresent == false)
     msgbox('No data has been given. Please provide data.', 'Error: No data given', 'error');
     
 elseif (handles.correct == 1)
-    msgbox('Data has been correctly classified. Please press "Reset Dataset" to restart the learning process.');
+    msgbox('Data has been correctly classified or is unable to be classified. Please press "Reset Dataset" to restart the learning process.');
     
-    %if data has been entered, proceed
 elseif (handles.dataPresent == true)
 
-%%  set background colours for processing and to show the data isn't classified yet
+    %% set background colours for processing and to show the data isn't classified yet
     set (handles.weightedSumLabel,'BackgroundColor',handles.processingColour);
     set (handles.desiredOutputLabel,'BackgroundColor','w');
-%%
-%% prevent the user from interacting with most GUI functions
-    disableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
-%%
-    %initialise variables if this is the first iteration of step
-    %through
+    %%
+    
+    %Step is running, therefore play = false
+    handles.play = false;
+    
+    %% initialise variables if this is the first iteration of step through
     if (handles.initialStepThroughComplete == false)
 
-        %set the number of datapoints to cycle through
+        %no. datapoints to cycle through
         handles.numDatapointsToCycleThrough = str2double(get(handles.stepThroughEdit,'String'));
 
-        %get the maximum number of iterations entered by the user
+        %maximum number of iterations entered by the user
         handles.maxIteration = str2double(get(handles.iterationEdit,'String'));
         handles.currentIteration = 0;
 
-        %set the data to being uncorrectly classified
+        %incorrectly classified
         handles.correct = -1;
 
-        %initialise the number of datapoints to cycle through as
-        %"blocks"
+        %initialise the number of datapoints to cycle through as "blocks"
         handles.minBlockDatapoints = 1 - handles.numDatapointsToCycleThrough;
         handles.maxBlockDatapoints = 0;
 
         %the initial step has been completed
         handles.initialStepThroughComplete = true;
+        
+        %prevent the user from interacting with most GUI functions
+        disableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
 
         guidata(hObject,handles);
     end
-        
+    %%
+
     %if the data hasn't been classified correctly and there is still
     %time to compute the classification
         if (handles.correct == -1) && (handles.currentIteration < handles.maxIteration)
@@ -397,41 +455,10 @@ elseif (handles.dataPresent == true)
 
                 weightedSum = handles.weights' * handles.inputData(1:3,:);
                 handles.actualOutput = sign(weightedSum);
-
                 error = handles.inputData(4,:) - handles.actualOutput;
-
-                if any(handles.actualOutput ~= handles.inputData(4,:))
-                    handles.correct = -1;
-                end
-
-                %if any datapoint is incorrectly classified, adjust the weights
-                if handles.correct == -1
-
-                    %for each datapoint, check if its actual output matches the desired
-                    %output. If not, adjust its weight accordingly.
-                    for i = handles.minBlockDatapoints:handles.maxBlockDatapoints
-                        
-                        highlightDatapointAndSetLabels(hObject,handles,weightedSum,i)
-
-                        %change weights if actual =/= desired
-                        if handles.actualOutput(1,i) ~= handles.inputData(4,i)
-
-                            handles.weights = handles.weights + handles.learningRate*error(i)*handles.inputData(1:3,i);
-                                %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
-
-                            %arbitrary pause to allow the user to see the change in
-                            %the threshold boundary as it moves around
-                            pause(0.1);
-                            
-                            %as only one threshold boundary is drawn for a
-                            %user defined number of datapoints, the program
-                            %can drop out of the classification if statement
-                            %and draw the line at the end
-                            
-                            setWeightLabels(hObject,handles);           
-                        end
-                    end
-                end
+               
+                compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
+                    handles = guidata(hObject);
                 
             elseif (get(handles.sigmoidToggle,'Value')==1)
                 
@@ -444,49 +471,21 @@ elseif (handles.dataPresent == true)
                 handles.actualOutput(handles.actualOutput < 0.5) = -1;
                 handles.actualOutput(handles.actualOutput >= 0.5) = 1;
                         
-                    %% compare actual with desired, classify correct or not
-                %if any of the actual output is not the same as the desired output then
-                %it is incorrectly classified
-                if any(handles.actualOutput ~= handles.inputData(4,:))
-                    handles.correct = -1;
-                end
-                %%
-
-                    %if any datapoint is incorrectly classified, adjust the weights
-                    if handles.correct == -1
-
-                        %for each datapoint, check if its actual output matches the desired
-                        %output. If not, adjust its weight accordingly.
-                        for i = 1:handles.inputSize
-                            
-                            highlightDatapointAndSetLabels(hObject,handles,weightedSum,i)
-
-                            %if the handles.actualOutput is not the same as the desiredOutput then the weights must be changed
-                            if handles.actualOutput(1,i) ~= handles.inputData(4,i)
-
-                                handles.weights = handles.weights + handles.learningRate*error(i)*handles.inputData(1:3,i);
-
-                                %handles.weights = handles.weights + handles.desiredOutput(1,i) * handles.inputData(:,i);
-
-                                %arbitrary pause to allow the user to see the change in
-                                %the threshold boundary as it moves around
-                                pause(0.001);
-                                displayThresholdBoundary(hObject, handles);
-                                setWeightLabels(hObject,handles);           
-                            end
-                            delete(handles.highlightedPoint);
-                        end
-                    end
+                compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
+                    handles = guidata(hObject);
             else
-                %ERROR
+                %Should not reach this stage. elseif's used to be specific with options
+                %available
             end
         end
 
+    %one threshold boundary is drawn for a user defined number of datapoints, the program
+    %can drop out of the classification if statement and draw the line at the end
     pause(0.01);
     displayThresholdBoundary(hObject, handles);
     
-%if all datapoints have been considered, one pass has been made and the block
-%sizes must be reset
+    %if all datapoints have been considered, one pass has been made and the block
+    %sizes must be reset
     if handles.maxBlockDatapoints >= handles.inputSize
         handles.maxBlockDatapoints = 0;
         handles.minBlockDatapoints = 1 - handles.numDatapointsToCycleThrough;
@@ -495,8 +494,34 @@ elseif (handles.dataPresent == true)
     %% change feedback colours to show the processing has completed
     set (handles.desiredOutputLabel,'BackgroundColor',handles.completedColour);
     set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
+    
+    %% enable slider if data is correctly classified
+    if handles.correct == 1
+        enableSlider(hObject,handles);
+    end
+    
+    if handles.correct == -1 && handles.currentIteration >= handles.maxIteration
+         
+        decision = questdlg('The data has not yet been classified correctly. Continue classifying?', ...
+        'Continue classifying?', ...
+        'Yes','No','No');
+
+        switch decision
+            case 'Yes'
+                % increment the number of play throughs to achieve a correct
+                % classification
+                handles.playCount = handles.playCount + 1;
+                handles.currentIteration = 0;
+
+            case 'No'  
+                handles.correct = 1;
+                enableSlider(hObject,handles);
+        end
+    end
+    
 else
-    %ERROR
+    %Should not reach this stage. elseif's used to be specific with options
+    %available
 end
 
 guidata(hObject,handles);
@@ -505,15 +530,13 @@ function highlightDatapointAndSetLabels(hObject,handles,weightedSum,i)
     
 global highlightedPoint;
 delete(highlightedPoint);
-%delete(handles.highlightedPoint);
 
 % select the currently considered point and highlight it
 x1 = handles.inputData(2,i);
 x2 = handles.inputData(3,i);
 hold on;
-%handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
-highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
 
+highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
 % set the data on the GUI
 setInputLabels(hObject,handles,i);
 setWeightLabels(hObject,handles)
@@ -528,25 +551,28 @@ function stopButton_Callback(hObject, eventdata, handles)
 %         handles.stopFlag = true;
 %         guidata(hObject,handles);
 %     end
-    
-       
+
 function displayThresholdBoundary(hObject, handles)
 
-%guidata(hObject,handles);
 global thresholdBoundary;
 %delete the current line so we can draw a new line
 delete(thresholdBoundary);
 
 %DRAW THE NEW LINE
 %======================================================
+
 %x1a and x1b are the minimum and maximum (respectively)
 %points on the x1 axis. The boundary line is defined
 %on the x1 axis as slightly smaller and bigger than x1a
 %and x1b
     %min - 0.1 * min ==> min * (1 - 0.1) ==> min * 0.9
     %max + 0.1 * max ==> max * (1 + 0.1) ==> max * 1.1
-    x1a = min(handles.inputData(2,:))* 0.9;
-    x1b = max(handles.inputData(2,:))* 1.1;
+    
+    %max (x1b) and min (x1a) have been swapped i.e. max(x1a) min(x1b) to
+    %try and get a better threshold boundary. Can be changed again at
+    %anytime
+    x1a = max(handles.inputData(2,:))* 1.1;
+    x1b = min(handles.inputData(2,:))* 0.9;
 
     %% create weights and display them on the GUI
     if isempty(handles.weights)
@@ -554,6 +580,7 @@ delete(thresholdBoundary);
        setWeightLabels(hObject,handles);
     end
     %%      
+    
 %separate the weights for the next calculation
     biasWeight = handles.weights(1);
     x1Weight = handles.weights(2);
@@ -567,66 +594,10 @@ delete(thresholdBoundary);
     %set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
     
 %finally, draw the line on the axes
-    thresholdBoundary = plot([x1a; x1b], [x2a,x2b], 'k-', 'linewidth',0.5);
-    
+    thresholdBoundary = plot([x1a; x1b], [x2a,x2b], 'Color',handles.thresholdColour, 'linewidth',0.5);
     guidata(hObject,handles);
 
-%plotData isn't and shouldn't currently be called
-function plotData(hObject,handles)
-    
- %workable data has been uploaded
-    handles.dataPresent = true;
-
-    %number of data points
-    handles.inputSize = size(handles.inputData,2); 
-    
-    %add the bias inputs to the data
-        handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
-    
-    %clear previous data from axes and plot new data on the axes
-    cla(handles.networkGraph);
-    reset(handles.networkGraph);
-
-    set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-    set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
-    
-%     handles.plottedData = gscatter(handles.inputData(1,1:handles.inputSize),...
-%             handles.inputData(2,1:handles.inputSize),...
-%             handles.inputData(3,1:handles.inputSize),'br','xo');
-        
-        handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-            handles.inputData(3,1:handles.inputSize),...
-            handles.inputData(4,1:handles.inputSize),'br','xo');
-
-    %To make classification calculations easier, turn all desired outputs
-    %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
-    %as [0,1] graphically but mathematically they will be different.
-%     if (handles.presetDataBoolean==true) && (ismember([0], handles.inputData(3,:)))
-%         handles.inputData(3,:) = 2*handles.inputData(3,:) - 1;
-%     end
-    if (handles.presetDataBoolean==true) && (ismember([0], handles.inputData(4,:)))
-        handles.inputData(4,:) = 2*handles.inputData(4,:) - 1;
-    end
-    
-    %separate the desired output classification and remove it from the input data
-%     handles.desiredOutput = handles.inputData(3,:);
-%     handles.inputData(3,:)=[];
-    
-    %add the bias inputs to the data
-    %handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
-    
-    %'3' can be replaced with handles.numInputVariables = size(handles.inputData,1);
-    handles.weights=randn(3,1);
-    guidata(hObject,handles);
-    
-    %display new weights on the GUI
-    setWeightLabels(hObject,handles);
-    
-    hold on;
-    displayThresholdBoundary(hObject,handles);
-
-    guidata(hObject,handles);
-
+%======================
 function loadPresetDataButton_Callback(hObject, eventdata, handles)
 
 %Get the filename and pathname for files of .mat type
@@ -651,72 +622,43 @@ if filename ~= 0
         msgbox('The file loaded is empty. Please load a non-empty file','Error: Empty file','error');
         return;
     else
-        %if data is valid
-            %% data is present
+        %TO DO: if data is valid
             %workable data has been uploaded
             handles.dataPresent = true;
-            %%
 
-            %% add ones, store as original data, show data on GUI table
-                %update number of data points and add biases
+            %% add biases(ones), store as original data for reset, show data on GUI table
                 handles.inputSize = size(handles.inputData,2); 
                 handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
-                
-                %store the originally loaded data so it can be reset later
                 handles.originalDataForReset = handles.inputData;
                 
-                %load the data into the GUI table
                 set (handles.dataTable, 'Data', handles.inputData');
             %%
-
-            %% clear labels
-                %clear labels and previous data from axes and plot new data on the axes
                 clearAllLabels(hObject,handles);
-                cla(handles.networkGraph);
-                reset(handles.networkGraph);
-            %%
             
             %% create weights and display them on the GUI
                 handles.weights=randn(3,1); %handles.numInputVariables = size(handles.inputData,1);
                 setWeightLabels(hObject,handles);
             %%
-
-            %% plot
-                set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-                set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
-
-                handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-                                                handles.inputData(3,1:handles.inputSize),...
-                                                handles.inputData(4,1:handles.inputSize),'br','xo');
-                hold on;
-                guidata(hObject,handles);
-                displayThresholdBoundary(hObject,handles);
-            %%
+                plotData(hObject,handles);
                                             
             %% [0,1] => [-1,+1]
                 %To make classification calculations easier, turn all desired outputs
                 %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
                 %as [0,1] graphically but mathematically they will be different.
-                handles.presetDataBoolean = true;
-                if (handles.presetDataBoolean==true) && (ismember([0], handles.inputData(4,:)))
+                if (ismember([0], handles.inputData(4,:)))
                     handles.inputData(4,:) = 2*handles.inputData(4,:) - 1;
                 end
             %%
 
-            %% unclassified, step through uninitialised, erase created data
-                %the data hasn't yet been classified or step through initiated
+            % unclassified, step through uninitialised, erase all user created data
                 handles.correct = -1;
                 handles.initialStepThroughComplete = false;
-
-                %all previously created datapoints must be erased
                 handles.createdDatapoints = [];
-            %%
 
-            %% enable interactions with GUI
                 enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
-            %%
+                resetSliderData(hObject,handles);
 
-            guidata(hObject,handles);
+                guidata(hObject,handles);
         %else
             %msgbox('Data invalid','Error: Data invalid','error');
             %return;
@@ -779,63 +721,34 @@ promptData = inputdlg(prompt,title,1,default_ans);
         %handles.inputData
         %Data.labels   = Data.labels(  randomOrder, : );
         %% 
-        %% data is present
+
         %workable data has been uploaded
         handles.dataPresent = true;
-        %%
 
-        %% add ones, store as original data, show data on GUI table
-        %update number of data points and add biases
+        %% add biases(ones), store as original data for reset, show data on GUI table
         handles.inputSize = size(handles.inputData,2); 
         handles.inputData = [ ones(1,handles.inputSize) ; handles.inputData ];
-        
-        %store the originally loaded data so it can be reset later
         handles.originalDataForReset = handles.inputData;
 
-        %load the data into the GUI table
         set (handles.dataTable, 'Data', handles.inputData');
         %%
-
-        %% clear labels
+        
         clearAllLabels(hObject,handles);
-        cla(handles.networkGraph);
-        reset(handles.networkGraph);
-        %%
         
         %% create weights and display them on the GUI
         handles.weights=randn(3,1); %handles.numInputVariables = size(handles.inputData,1);
         setWeightLabels(hObject,handles);
         %%
         
-        %% plot
+        plotData(hObject,handles);
 
-        set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-        set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
-
-        handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-                                        handles.inputData(3,1:handles.inputSize),...
-                                        handles.inputData(4,1:handles.inputSize),'br','xo');
-        hold on;
-        guidata(hObject,handles);
-        displayThresholdBoundary(hObject,handles);
-        %%
-        
-        %% [0,1] => [-1,+1]
-        %classes created don't need to be turned from [0,1] to [-1,+1]
-        handles.presetDataBoolean = false;
-        %%
-
-        %% unclassified, step through uninitialised, erase created data
+        %unclassified, step through uninitialised, erase all user created data
         handles.correct = -1;
         handles.initialStepThroughComplete = false;
-
-        %all previously created datapoints must be erased
         handles.createdDatapoints = [];
-        %%
 
-        %% enable interactions with the GUI
         enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
-        %%
+        resetSliderData(hObject,handles);
 
         guidata(hObject,handles);
     %else
@@ -908,7 +821,7 @@ function samples = normallyDistributedSample( sampleSize, sampleMean, sampleStdD
     samples     = bsxfun( @times, samples, sampleStdDev );
     samples     = bsxfun( @plus,  samples, sampleMean   );
 %end % NORMALDISTRIBUTIONSAMPLE   
-
+%======================
 function resetDatasetButton_Callback(hObject, eventdata, handles)
 if ~isempty(handles.inputData)
     
@@ -933,18 +846,15 @@ if ~isempty(handles.inputData)
             handles.createdDatapoints = [];
     end
     %%
-    
-    %% clear labels and data 
-        clearAllLabels(hObject,handles);
-        cla(handles.networkGraph);
-        reset(handles.networkGraph);
-    %%
+    clearAllLabels(hObject,handles);
+    cla(handles.networkGraph);
+    reset(handles.networkGraph);
 
     if ~isempty(handles.inputData)
     
         %% data is present
-            %workable data has been uploaded
-            handles.dataPresent = true;
+        %workable data has been uploaded
+        handles.dataPresent = true;
         %%
 
         %% create weights and display them on the GUI
@@ -956,37 +866,38 @@ if ~isempty(handles.inputData)
         set (handles.dataTable, 'Data', handles.inputData');
         %%
         
-        %% plot data
-        set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-        set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
-        
-        %update number of data points
-        handles.inputSize = size(handles.inputData,2);  
-        handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-            handles.inputData(3,1:handles.inputSize),...
-            handles.inputData(4,1:handles.inputSize),'br','xo');
-        
-        hold on;
-        guidata(hObject,handles);
-        displayThresholdBoundary(hObject,handles);
-        %%
+        %update number of datapoints
+        handles.inputSize = size(handles.inputData,2); 
+
+        plotData(hObject,handles);
     
         %% unclassified, step through uninitialised
-        %the data hasn't yet been classified or step through initiated
         handles.correct = -1;
         handles.initialStepThroughComplete = false;
         %%
 
-        %% enable interactions with GUI
-                enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
-        %%
         guidata(hObject,handles);
     end
+
+    enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
+    resetSliderData(hObject,handles);
+
     guidata(hObject,handles);
 end
+function deleteDataset_Callback(hObject, eventdata, handles)
 
+    decision = questdlg('Delete all loaded and user defined data?', ...
+        'Delete all data?', ...
+        'Yes','No','No');
+    
+    switch decision
+        case 'Yes'  %delete all data
+            resetHandleVariables(hObject,eventdata,handles);
+            guidata(hObject,handles);
+        case 'No'   %do nothing
+    end
 %======================
-function disableEditBoxesAndThresholdToggles(hObject,eventdata, handles)
+function disableEditBoxesAndThresholdToggles(hObject, eventdata, handles)
     
     %stop the user from changing values, threshold function types, or create new datapoints half
     %way through the learning process. This will prevent unwanted errors.
@@ -1010,7 +921,7 @@ function disableEditBoxesAndThresholdToggles(hObject,eventdata, handles)
         set (handles.manualDatapointCreationCompleteButton,'Enable','off');
     
     guidata(hObject,handles);     
-function enableEditBoxesAndThresholdToggles(hObject,eventdata, handles)
+function enableEditBoxesAndThresholdToggles(hObject, eventdata, handles)
             
     %renable the ability for users to change values, threshold functions
     %and create new values.
@@ -1067,6 +978,7 @@ if handles.classAColour == 0
 end
 
 set(handles.classAPanel,'BackgroundColor',handles.classAColour);
+plotData(hObject,handles);
 guidata(hObject,handles);
 function classBColourChoice_Callback(hObject, eventdata, handles)
 
@@ -1077,6 +989,7 @@ if handles.classBColour == 0
 end
 
 set(handles.classBPanel,'BackgroundColor',handles.classBColour);
+plotData(hObject,handles);
 guidata(hObject,handles);
 function thresholdBoundaryColourChoice_Callback(hObject, eventdata, handles)
     
@@ -1087,17 +1000,52 @@ if handles.thresholdColour == 0
 end
 
 set(handles.thresholdPanel,'BackgroundColor',handles.thresholdColour);
+plotData(hObject,handles);
 guidata(hObject,handles);  
-%========================
-function setSliderMaxValue(hObject, handles)
+function defaultColoursButton_Callback(hObject, eventdata, handles)
 
-if handles.inputSize ~= 0
-    set (handles.stepSlider,'Max',handles.inputSize);
-else 
-    set (handles.stepSlider,'Max', 0);
-end
+setDefaultColours(hObject,handles);
+%======================
 
+function stepSliderDataGather(hObject,handles,i)
+ 
+    handles.playHistory = [handles.playHistory handles.playCount];
+    handles.iterationHistory = [handles.iterationHistory handles.currentIteration];
+    handles.datapointHistory = [handles.datapointHistory [handles.inputData(2,i);handles.inputData(3,i)]];
+    handles.weightHistory = [handles.weightHistory handles.weights];
+    
+    guidata(hObject,handles);
+    
 function stepSlider_Callback(hObject, eventdata, handles)
+    
+sliderValue = ceil(get(handles.stepSlider,'Value'))
+
+%handles.inputSize weightHistory - for saving data by not using
+%datapointHistory
+ 
+handles.weights = handles.weightHistory(:,sliderValue);
+displayThresholdBoundary(hObject,handles);
+handles = guidata(hObject);
+
+%=========
+    
+global highlightedPoint;
+delete(highlightedPoint);
+
+x1 = handles.datapointHistory(1,sliderValue);
+x2 = handles.datapointHistory(2,sliderValue);
+hold on;
+%handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
+highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
+
+% % set the data on the GUI
+% setInputLabels(hObject,handles,i);
+% setWeightLabels(hObject,handles)
+% setOutputLabels(hObject, handles, i);
+% set (handles.weightedSumLabel,'String', weightedSum(i));
+
+guidata(hObject,handles);
+
             function stepSlider_CreateFcn(hObject, eventdata, handles)
 
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -1278,19 +1226,10 @@ handles.dataPresent = true;
 set (handles.dataTable, 'Data', handles.inputData');
 %%
 
-%% clear labels and data then plot
-cla(handles.networkGraph);
-reset(handles.networkGraph);
+plotData(hObject,handles);
 
-set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
-
-handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-                                handles.inputData(3,1:handles.inputSize),...
-                                handles.inputData(4,1:handles.inputSize),'br','xo');            
-hold on;
-guidata(hObject,handles);
-displayThresholdBoundary(hObject,handles);
+%update the guidata after accessing the custom displayThreshold function
+handles = guidata(hObject);
 %%
 
 %% set the editboxes to empty to show they're ready for new input
@@ -1317,7 +1256,8 @@ if (get(handles.graphDatapointCreationToggle,'Value')==1)
     elseif (get(handles.classBToggle,'Value')==1)
         tempDesiredOutput = -1;
     else
-        %Error
+        %Should not reach this stage. elseif's used to be specific with
+        %options available
     end
     %%
     
@@ -1325,41 +1265,29 @@ if (get(handles.graphDatapointCreationToggle,'Value')==1)
     %workable data has been uploaded
     handles.dataPresent = true;
     %%
+
+    %% data entry
+    %append the new datapoints to createdDatapoints. Allows the user the
+    %option of including manually created data when reseting datapoints
+    handles.createdDatapoints = [handles.createdDatapoints [ones(1,length(X1'));X1';X2';[ones(1,length(X1'))*tempDesiredOutput]]];
+
+    %append the created datapoints to the input data
+    %need to create a vector of 1's and multiply by the class (+1 or -1)
+    %to create a row vector of +1 or -1 to append to the input data
+    handles.inputData = [handles.inputData [ones(1,length(X1'));X1';X2';[ones(1,length(X1'))*tempDesiredOutput]]];
+    %handles.desiredOutput = [handles.desiredOutput [ones(1,length(X1'))*tempDesiredOutput]];
+    handles.inputSize = size(handles.inputData,2);
+    %%
+
+    %% show data in the GUI table
+    set (handles.dataTable, 'Data', handles.inputData');
+    %%
+
+    plotData(hObject,handles);
     
-    if handles.dataPresent == true
+    %update the guidata after accessing the custom displayThreshold
+    %function
+    handles = guidata(hObject);
         
-        %% data entry
-        %append the new datapoints to createdDatapoints. Allows the user the
-        %option of including manually created data when reseting datapoints
-        handles.createdDatapoints = [handles.createdDatapoints [ones(1,length(X1'));X1';X2';[ones(1,length(X1'))*tempDesiredOutput]]];
-        
-        %append the created datapoints to the input data
-        %need to create a vector of 1's and multiply by the class (+1 or -1)
-        %to create a row vector of +1 or -1 to append to the input data
-        handles.inputData = [handles.inputData [ones(1,length(X1'));X1';X2';[ones(1,length(X1'))*tempDesiredOutput]]];
-        %handles.desiredOutput = [handles.desiredOutput [ones(1,length(X1'))*tempDesiredOutput]];
-        handles.inputSize = size(handles.inputData,2);
-        %%
-        
-        %% show data in the GUI table
-        set (handles.dataTable, 'Data', handles.inputData');
-        %%
-        
-        %% clear labels and data then plot
-        cla(handles.networkGraph);
-        reset(handles.networkGraph);
-
-        set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-        set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
-
-        handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
-                                        handles.inputData(3,1:handles.inputSize),...
-                                        handles.inputData(4,1:handles.inputSize),'br','xo');            
-        hold on;
-        guidata(hObject,handles);
-        displayThresholdBoundary(hObject,handles);
-        %%
-        
-    end
     guidata(hObject,handles);
 end
