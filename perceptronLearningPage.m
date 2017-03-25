@@ -188,6 +188,12 @@ handles.weightHistory = [];
 %the data. 
 set (handles.stepSlider,'Enable','off');
 
+%disable the play through and iteration counters
+set (handles.playThroughCountLabel,'Visible','off');
+set (handles.playThroughValueLabel,'Visible','off');
+set (handles.iterationCountLabel,'Visible','off');
+set (handles.iterationValueLabel,'Visible','off');
+
 guidata(hObject,handles);
 function enableSlider(hObject,handles)
     
@@ -196,6 +202,12 @@ set (handles.stepSlider,'Min', 1);
 set (handles.stepSlider,'Max', length(handles.weightHistory));
 set (handles.stepSlider,'Value', 1);
 set (handles.stepSlider,'SliderStep', [1/length(handles.weightHistory), 1/length(handles.weightHistory)]);
+
+%enable the play through and iteration counters
+set (handles.playThroughCountLabel,'Visible','on');
+set (handles.playThroughValueLabel,'Visible','on');
+set (handles.iterationCountLabel,'Visible','on');
+set (handles.iterationValueLabel,'Visible','on');
 
 guidata(hObject,handles);
 function plotData(hObject,handles)
@@ -217,11 +229,23 @@ if ~isempty(handles.inputData)
 
     guidata(hObject,handles);
 end
+function plotError(hObject,handles,error)
+    
+sqe = sum(error.^2);
+set (handles.errorLabel,'String', sqe);
+hold (handles.errorGraph,on);
+handles.errorGraph = plot (handles.errorGraph,handles.currentIteration,sqe, 'x');
+
+guidata(hObject,handles);
+    
 function compareClassAndAdjustWeights(hObject, handles, weightedSum, error)
 % compare actual with desired, classify correct or not
 if any(handles.actualOutput ~=handles.inputData(4,:))
     handles.correct = -1;
 end
+
+plotError(hObject,handles,error);
+
 
 %adjust weights if any points are incorrectly classified
 if handles.correct == -1
@@ -657,6 +681,7 @@ if filename ~= 0
 
                 enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
                 resetSliderData(hObject,handles);
+                    handles = guidata(hObject);
 
                 guidata(hObject,handles);
         %else
@@ -749,7 +774,7 @@ promptData = inputdlg(prompt,title,1,default_ans);
 
         enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
         resetSliderData(hObject,handles);
-
+            handles = gudiata(hObject);
         guidata(hObject,handles);
     %else
         %msgbox('Data invalid','Error: Data invalid','error');
@@ -881,6 +906,7 @@ if ~isempty(handles.inputData)
 
     enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
     resetSliderData(hObject,handles);
+        handles = guidata(hObject);
 
     guidata(hObject,handles);
 end
@@ -901,6 +927,17 @@ function disableEditBoxesAndThresholdToggles(hObject, eventdata, handles)
     
     %stop the user from changing values, threshold function types, or create new datapoints half
     %way through the learning process. This will prevent unwanted errors.
+    
+    %only one method of classifying the data can be run at a time to
+    %prevent potential interaction bugs/problems when using one then the
+    %other for the same dataset at the same time
+    if handles.play == true
+        set (handles.stepThroughButton, 'Enable','off');
+    else
+        set (handles.playButton, 'Enable','off');
+        set (handles.stopButton, 'Enable','off');
+    end
+    
     set(handles.stepToggle,'Enable','Off');
     set(handles.sigmoidToggle,'Enable','Off');
     
@@ -911,20 +948,34 @@ function disableEditBoxesAndThresholdToggles(hObject, eventdata, handles)
     set(handles.graphDatapointCreationToggle,'Enable','off');
     set(handles.manualDatapointCreationToggle,'Enable','off');
  
-        set (handles.classAToggle,'Enable','off');
-        set (handles.classBToggle,'Enable','off');
-        set (handles.addDatapoints,'Enable','off');
+    set (handles.classAToggle,'Enable','off');
+    set (handles.classBToggle,'Enable','off');
+    set (handles.addDatapoints,'Enable','off');
 
-        set (handles.manualDatapointCreationX1Edit,'Enable','off');
-        set (handles.manualDatapointCreationX2Edit,'Enable','off');
-        set (handles.manualDatapointCreationClassEdit,'Enable','off');
-        set (handles.manualDatapointCreationCompleteButton,'Enable','off');
+    set (handles.manualDatapointCreationX1Edit,'Enable','off');
+    set (handles.manualDatapointCreationX2Edit,'Enable','off');
+    set (handles.manualDatapointCreationClassEdit,'Enable','off');
+    set (handles.manualDatapointCreationCompleteButton,'Enable','off');
+        
+    set (handles.defaultColoursButton,'Enable','off');
+    set (handles.notRunningColourChoice,'Enable','off');
+    set (handles.processingColourChoice,'Enable','off');
+    set (handles.completedColourChoice,'Enable','off');
+    set (handles.classAColourChoice,'Enable','off');
+    set (handles.classBColourChoice,'Enable','off');
+    set (handles.thresholdBoundaryColourChoice,'Enable','off');
     
     guidata(hObject,handles);     
 function enableEditBoxesAndThresholdToggles(hObject, eventdata, handles)
             
     %renable the ability for users to change values, threshold functions
     %and create new values.
+    
+    %enable both classifcation methods
+    set (handles.stepThroughButton,'Enable','On');
+    set (handles.playButton,'Enable','On');
+    set (handles.stopButton,'Enable','On');
+    
     set(handles.stepToggle,'Enable','On');
     set(handles.sigmoidToggle,'Enable','On');
     
@@ -936,6 +987,14 @@ function enableEditBoxesAndThresholdToggles(hObject, eventdata, handles)
     set(handles.manualDatapointCreationToggle,'Enable','on');
         graphDatapointCreationToggle_Callback(hObject,eventdata, handles);
         manualDatapointCreationToggle_Callback(hObject,eventdata, handles);
+        
+    set (handles.defaultColoursButton,'Enable','on');
+    set (handles.notRunningColourChoice,'Enable','on');
+    set (handles.processingColourChoice,'Enable','on');
+    set (handles.completedColourChoice,'Enable','on');
+    set (handles.classAColourChoice,'Enable','on');
+    set (handles.classBColourChoice,'Enable','on');
+    set (handles.thresholdBoundaryColourChoice,'Enable','on');
     
     guidata(hObject,handles);
 %======================
@@ -1018,7 +1077,7 @@ function stepSliderDataGather(hObject,handles,i)
     
 function stepSlider_Callback(hObject, eventdata, handles)
     
-sliderValue = ceil(get(handles.stepSlider,'Value'))
+sliderValue = ceil(get(handles.stepSlider,'Value'));
 
 %handles.inputSize weightHistory - for saving data by not using
 %datapointHistory
@@ -1043,6 +1102,24 @@ highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
 % setWeightLabels(hObject,handles)
 % setOutputLabels(hObject, handles, i);
 % set (handles.weightedSumLabel,'String', weightedSum(i));
+
+%set playThroughLabel = 'current / max' 
+tempValue = sprintf('%d / %d',handles.playHistory(sliderValue), max(handles.playHistory));
+set (handles.playThroughValueLabel,'string', tempValue);
+
+
+%find the maximum iteration array position for the current play through
+tempIterationMax = find(handles.playHistory == (handles.playHistory(sliderValue) + 1), 1, 'first') - 1;
+
+%if there is no more play throughs after this one then tempIterationMax should be empty
+if isempty(tempIterationMax)
+    %get the last position of iterationHistory
+    tempIterationMax = length(handles.iterationHistory);
+end
+
+%set the iterationLabel = LOCAL 'current / max'
+tempValue = sprintf('%d / %d', handles.iterationHistory(sliderValue), handles.iterationHistory(tempIterationMax));
+set (handles.iterationValueLabel,'string', tempValue);
 
 guidata(hObject,handles);
 
