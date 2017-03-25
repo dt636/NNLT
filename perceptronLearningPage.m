@@ -95,6 +95,8 @@ handles.createdDatapoints = [];
 handles.weights = [];
 handles.learningRate = 1;
 set (handles.learningRateEdit,'String','1');
+handles.weightedSum = 0;
+
 
 handles.manualX1Input = 0;
 handles.manualX2Input = 0;
@@ -129,6 +131,8 @@ enableEditBoxesAndThresholdToggles(hObject,eventdata, handles);
 
 resetSliderData(hObject,handles);
     handles = guidata(hObject);
+resetError(hObject,handles);
+    handles  = guidata(hObject);
     
 guidata(hObject,handles);
 function setWeightLabels(hObject,handles)
@@ -218,8 +222,10 @@ if ~isempty(handles.inputData)
     reset(handles.networkGraph);
     
     set (handles.networkGraph, 'XLim',[min(handles.inputData(2,:))* 0.9 max(handles.inputData(2,:))* 1.1]);
-    set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);                          
+    set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]);
 
+    axes(handles.networkGraph);
+    
     handles.plottedData = gscatter(handles.inputData(2,1:handles.inputSize),...
                                     handles.inputData(3,1:handles.inputSize),...
                                     handles.inputData(4,1:handles.inputSize),[handles.classAColour; handles.classBColour],'xo');
@@ -229,14 +235,29 @@ if ~isempty(handles.inputData)
 
     guidata(hObject,handles);
 end
+
 function plotError(hObject,handles,error)
     
-sqe = sum(error.^2);
-set (handles.errorLabel,'String', sqe);
-hold (handles.errorGraph,on);
-handles.errorGraph = plot (handles.errorGraph,handles.currentIteration,sqe, 'x');
+handles.sumSquaredError = [handles.sumSquaredError sum(error.^2)];
+
+set (handles.errorLabel,'String', sum(error.^2));
+
+hold on;
+plot (handles.errorGraph,handles.sumSquaredError(1,:),'x-');
 
 guidata(hObject,handles);
+function resetError(hObject,handles)
+
+handles.error = 0;
+handles.sumSquaredError = [];
+
+set (handles.errorLabel,'String','');
+
+cla(handles.errorGraph);
+reset(handles.errorGraph);
+
+guidata(hObject,handles);
+        
     
 function compareClassAndAdjustWeights(hObject, handles, weightedSum, error)
 % compare actual with desired, classify correct or not
@@ -245,7 +266,7 @@ if any(handles.actualOutput ~=handles.inputData(4,:))
 end
 
 plotError(hObject,handles,error);
-
+    handles = guidata(hObject);
 
 %adjust weights if any points are incorrectly classified
 if handles.correct == -1
@@ -286,6 +307,60 @@ if handles.correct == -1
 end
 
 guidata(hObject,handles);
+function calculateActualAndError(hObject,handles)
+
+    handles.weightedSum = handles.weights' * handles.inputData(1:3,:);
+    
+    if (get(handles.stepToggle,'Value')== 1)
+
+        handles.actualOutput = sign(handles.weightedSum);
+        handles.error = handles.inputData(4,:) - handles.actualOutput;
+        
+    elseif (get(handles.sigmoidToggle,'Value')==1)
+        
+        handles.actualOutput = 1 ./ (1 + exp(-handles.weightedSum));
+        handles.error = handles.inputData(4,:) - handles.actualOutput;
+
+        %sigmoid squashes to [0,1] range. Need classes [-1,+1] so
+        %if x < 0.5 then -1 else +1
+        handles.actualOutput(handles.actualOutput < 0.5) = -1;
+        handles.actualOutput(handles.actualOutput >= 0.5) = 1;
+        
+    else
+        %Should not reach this stage. elseif's used to be specific with
+        %options available
+    end
+    
+    guidata(hObject,handles);
+    
+    
+function checkClassification(hObject,handles)
+%enable slider if data is correctly classified
+if handles.correct == 1
+    enableSlider(hObject,handles);
+end
+
+%if not classified yet, ask if user wants to continue
+%COULD USE ERROR TO CHECK WHETHER TO KEEP CLASSIFYING OR NOT. WHEN ERROR
+%DOESNT CHANGE FOR A WHILE, SAY IT HASNT CLASSIFIED
+if handles.correct == -1 && handles.currentIteration >= handles.maxIteration
+
+    decision = questdlg('The data has not yet been classified correctly. Continue classifying?', ...
+    'Continue classifying?', ...
+    'Yes','No','No');
+
+    switch decision
+        case 'Yes'
+            % increment the number of play throughs to achieve a correct
+            % classification
+            handles.playCount = handles.playCount + 1;
+            handles.currentIteration = 0;
+
+        case 'No'  
+            handles.correct = 1;
+            enableSlider(hObject,handles);
+    end
+end
 
 function playButton_Callback(hObject, eventdata, handles)
 
@@ -336,6 +411,14 @@ elseif (handles.dataPresent == true)
         handles.correct = 1;
         handles.currentIteration = handles.currentIteration + 1;
         %%
+        
+        calculateActualAndError(hObject,handles)
+            handles = guidata(hObject);
+        
+        set(handles.dataTable,'Data',[handles.inputData' handles.actualOutput']);
+        
+        compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
+            handles = guidata(hObject);
 
         if (get(handles.stepToggle,'Value')== 1) 
             %sign the weighted sum to get the actual output
@@ -344,6 +427,7 @@ elseif (handles.dataPresent == true)
 
             %error is difference between desired and actual
             error = handles.inputData(4,:) - handles.actualOutput;
+            
             
             set(handles.dataTable,'Data',[handles.inputData' handles.actualOutput']);
 
@@ -360,6 +444,7 @@ elseif (handles.dataPresent == true)
             %if x < 0.5 then -1 else +1
             handles.actualOutput(handles.actualOutput < 0.5) = -1;
             handles.actualOutput(handles.actualOutput >= 0.5) = 1;
+            
 
             compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
                 handles = guidata(hObject);
@@ -378,29 +463,9 @@ elseif (handles.dataPresent == true)
     set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
     %%
 
-    %% enable slider if data is correctly classified
-    if handles.correct == 1
-        enableSlider(hObject,handles);
-    end
-    
-    if handles.correct == -1 && handles.currentIteration >= handles.maxIteration
-         
-        decision = questdlg('The data has not yet been classified correctly. Continue classifying?', ...
-        'Continue classifying?', ...
-        'Yes','No','No');
-
-        switch decision
-            case 'Yes'
-                % increment the number of play throughs to achieve a correct
-                % classification
-                handles.playCount = handles.playCount + 1;
-                handles.currentIteration = 0;
-
-            case 'No'  
-                handles.correct = 1;
-                enableSlider(hObject,handles);
-        end
-    end
+    checkClassification(hObject,handles);
+        handles = guidata(hObject);
+        guidata(hObject,handles);
     
     handles.playRunning = false;
 else
@@ -519,29 +584,9 @@ elseif (handles.dataPresent == true)
     set (handles.desiredOutputLabel,'BackgroundColor',handles.completedColour);
     set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
     
-    %% enable slider if data is correctly classified
-    if handles.correct == 1
-        enableSlider(hObject,handles);
-    end
-    
-    if handles.correct == -1 && handles.currentIteration >= handles.maxIteration
-         
-        decision = questdlg('The data has not yet been classified correctly. Continue classifying?', ...
-        'Continue classifying?', ...
-        'Yes','No','No');
-
-        switch decision
-            case 'Yes'
-                % increment the number of play throughs to achieve a correct
-                % classification
-                handles.playCount = handles.playCount + 1;
-                handles.currentIteration = 0;
-
-            case 'No'  
-                handles.correct = 1;
-                enableSlider(hObject,handles);
-        end
-    end
+    checkClassification(hObject,handles);
+        handles = guidata(hObject);
+        guidata(hObject,handles);
     
 else
     %Should not reach this stage. elseif's used to be specific with options
@@ -682,6 +727,8 @@ if filename ~= 0
                 enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
                 resetSliderData(hObject,handles);
                     handles = guidata(hObject);
+                resetError(hObject,handles);
+                    handles = guidata(hObject);
 
                 guidata(hObject,handles);
         %else
@@ -774,7 +821,9 @@ promptData = inputdlg(prompt,title,1,default_ans);
 
         enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
         resetSliderData(hObject,handles);
-            handles = gudiata(hObject);
+            handles = guidata(hObject);
+        resetError(hObject,handles);
+            handles  = guidata(hObject);
         guidata(hObject,handles);
     %else
         %msgbox('Data invalid','Error: Data invalid','error');
@@ -861,7 +910,9 @@ if ~isempty(handles.inputData)
             %if preset data consists of [0,1] and user created data consists of
             %[-1,+1], then plotting 0,1 and -1 will create a bugged plot so
             %need to turn -1's to 0 so the data is consistent
-            if (ismember([-1], handles.createdDatapoints)) && (ismember([0],handles.originalDataForReset(4,:)))
+
+            if (ismember([-1], handles.createdDatapoints)) && (~isempty(handles.originalDataForReset)) && ...
+                                                               (ismember([0],handles.originalDataForReset(4,:)))
                 handles.createdDatapoints(handles.createdDatapoints == -1) = 0;
             end
             
@@ -907,6 +958,8 @@ if ~isempty(handles.inputData)
     enableEditBoxesAndThresholdToggles(hObject,eventdata,handles);
     resetSliderData(hObject,handles);
         handles = guidata(hObject);
+    resetError(hObject,handles);
+        handles  = guidata(hObject);
 
     guidata(hObject,handles);
 end
@@ -919,6 +972,7 @@ function deleteDataset_Callback(hObject, eventdata, handles)
     switch decision
         case 'Yes'  %delete all data
             resetHandleVariables(hObject,eventdata,handles);
+                handles = guidata(hObject);
             guidata(hObject,handles);
         case 'No'   %do nothing
     end
