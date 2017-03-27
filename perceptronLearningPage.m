@@ -22,7 +22,7 @@ function varargout = perceptronLearningPage(varargin)
 
 % Edit the above text to modify the response to help perceptronLearningPage
 
-% Last Modified by GUIDE v2.5 23-Mar-2017 12:29:39
+% Last Modified by GUIDE v2.5 25-Mar-2017 15:28:02
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -97,7 +97,6 @@ handles.learningRate = 1;
 set (handles.learningRateEdit,'String','1');
 handles.weightedSum = 0;
 
-
 handles.manualX1Input = 0;
 handles.manualX2Input = 0;
 handles.manualClassInput = 0;
@@ -109,8 +108,6 @@ handles.minBlockDatapoints = 0;
 handles.maxBlockDatapoints = 0;
 
 handles.play = false;
-handles.playRunning = false;
-handles.stopFlag = false;
 
 %handle for appending to handles.inputData in ManualDatapointCreationCompleteButton_Callback
 %resetting the data to include the users created datapoints 
@@ -236,14 +233,18 @@ if ~isempty(handles.inputData)
     guidata(hObject,handles);
 end
 
-function plotError(hObject,handles,error)
+%====================
+function plotError(hObject,handles)
     
-handles.sumSquaredError = [handles.sumSquaredError sum(error.^2)];
+handles.sumSquaredError = [handles.sumSquaredError sum(handles.error.^2)];
 
-set (handles.errorLabel,'String', sum(error.^2));
+set (handles.errorLabel,'String', sum(handles.error.^2));
 
 hold on;
 plot (handles.errorGraph,handles.sumSquaredError(1,:),'x-');
+
+xlabel(handles.errorGraph,'Iteration')
+ylabel(handles.errorGraph,'Error')
 
 guidata(hObject,handles);
 function resetError(hObject,handles)
@@ -256,16 +257,18 @@ set (handles.errorLabel,'String','');
 cla(handles.errorGraph);
 reset(handles.errorGraph);
 
+xlabel(handles.errorGraph,'Iteration')
+ylabel(handles.errorGraph,'Error')
+
 guidata(hObject,handles);
-        
-    
-function compareClassAndAdjustWeights(hObject, handles, weightedSum, error)
+%====================
+function compareClassAndAdjustWeights(hObject, handles)
 % compare actual with desired, classify correct or not
 if any(handles.actualOutput ~=handles.inputData(4,:))
     handles.correct = -1;
 end
 
-plotError(hObject,handles,error);
+plotError(hObject,handles);
     handles = guidata(hObject);
 
 %adjust weights if any points are incorrectly classified
@@ -284,15 +287,17 @@ if handles.correct == -1
     %for each datapoint
     for i = minI:maxI
 
-%                     if handles.stopFlag == true
-%                         break;
-%                     end
+        %exit the datapoint selection loop if stop button is pressed
+         drawnow
+         if get(handles.stopButton,'userdata')
+             break;
+         end
 
-        highlightDatapointAndSetLabels(hObject,handles,weightedSum,i)
+        highlightDatapointAndSetLabels(hObject,handles,i)
 
         %change weights of the datapoint if actual =/= desired
         if handles.actualOutput(1,i) ~= handles.inputData(4,i)
-            handles.weights = handles.weights + handles.learningRate*error(i)*handles.inputData(1:3,i);
+            handles.weights = handles.weights + handles.learningRate*handles.error(i)*handles.inputData(1:3,i);
             %pause to allow user to see threshold boundary move
             pause(0.001);
             if handles.play == true
@@ -310,7 +315,7 @@ guidata(hObject,handles);
 function calculateActualAndError(hObject,handles)
 
     handles.weightedSum = handles.weights' * handles.inputData(1:3,:);
-    
+
     if (get(handles.stepToggle,'Value')== 1)
 
         handles.actualOutput = sign(handles.weightedSum);
@@ -331,9 +336,9 @@ function calculateActualAndError(hObject,handles)
         %options available
     end
     
+    displayDataTable(hObject,handles)
+    
     guidata(hObject,handles);
-    
-    
 function checkClassification(hObject,handles)
 %enable slider if data is correctly classified
 if handles.correct == 1
@@ -362,6 +367,24 @@ if handles.correct == -1 && handles.currentIteration >= handles.maxIteration
     end
 end
 
+guidata(hObject,handles);
+function displayDataTable(hObject,handles)
+    
+%[-1,1] => [0,+1] make sure if user enters 0's as data they are shown as
+%0's in the data table
+if (ismember([0], handles.originalDataForReset(4,:)))
+    tempInputData = handles.inputData;
+    tempInputData(4,:) = (handles.inputData(4,:) + 1) ./ 2;
+    tempActualOutput = (handles.actualOutput + 1) ./ 2;
+else
+    tempInputData = handles.inputData;
+    tempActualOutput = handles.actualOutput;
+end
+    
+set (handles.dataTable,'Data',[tempInputData' tempActualOutput']);
+
+%====================
+
 function playButton_Callback(hObject, eventdata, handles)
 
 %if no data then error and exit
@@ -374,8 +397,8 @@ elseif (handles.correct == 1)
     %if data has been entered, proceed
 elseif (handles.dataPresent == true)
     
-    %function is running
-    handles.playRunning = true;
+    set (handles.stopButton,'userdata',0);
+    
     %Play is running, therefore play = true
     handles.play = true;
     
@@ -396,62 +419,27 @@ elseif (handles.dataPresent == true)
 
     %while the data hasn't been classified correctly and there is still
     %time to compute the classification
-    while (handles.correct == -1) && (handles.currentIteration < handles.maxIteration)
+    while (handles.correct == -1) && (handles.currentIteration < handles.maxIteration) && ~get(handles.stopButton,'userdata')
 
-        
-%         pause(0.001);
-%         if handles.stopFlag == true
-%             handles.stopFlag = false;
-%             handles.playRunning =false;
-%             guidata(hObject,handles);
-%             return;
-%         end
+        %exit the while loop for play. Need to exit the while (playButton)
+        %and for loop (compareClassAndAdjustWeights) to fully stop playing
+        pause(0.0001);
+        drawnow
+        if get(handles.stopButton,'userdata')
+            break;
+        end
         
         %% classify correctly and increment iteration
         handles.correct = 1;
         handles.currentIteration = handles.currentIteration + 1;
         %%
         
-        calculateActualAndError(hObject,handles)
+        calculateActualAndError(hObject,handles);
             handles = guidata(hObject);
         
-        set(handles.dataTable,'Data',[handles.inputData' handles.actualOutput']);
-        
-        compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
+        compareClassAndAdjustWeights(hObject, handles);
             handles = guidata(hObject);
 
-        if (get(handles.stepToggle,'Value')== 1) 
-            %sign the weighted sum to get the actual output
-            weightedSum = handles.weights' * handles.inputData(1:3,:);
-            handles.actualOutput = sign(weightedSum);
-
-            %error is difference between desired and actual
-            error = handles.inputData(4,:) - handles.actualOutput;
-            
-            
-            set(handles.dataTable,'Data',[handles.inputData' handles.actualOutput']);
-
-            compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
-                handles = guidata(hObject);
-
-        elseif (get(handles.sigmoidToggle,'Value')==1)
-
-            weightedSum = handles.weights' * handles.inputData(1:3,:);
-            handles.actualOutput = 1 ./ (1 + exp(-weightedSum));
-            error = handles.inputData(4,:) - handles.actualOutput;
-
-            %sigmoid squashes to [0,1] range. Need classes [-1,+1] so
-            %if x < 0.5 then -1 else +1
-            handles.actualOutput(handles.actualOutput < 0.5) = -1;
-            handles.actualOutput(handles.actualOutput >= 0.5) = 1;
-            
-
-            compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
-                handles = guidata(hObject);
-        else
-            %Should not reach this stage. elseif's used to be specific with
-            %options available
-        end
     end
 
     %final threshold boundary drawn
@@ -465,9 +453,15 @@ elseif (handles.dataPresent == true)
 
     checkClassification(hObject,handles);
         handles = guidata(hObject);
-        guidata(hObject,handles);
+        
+    set (handles.stopButton,'userdata',0);   
     
-    handles.playRunning = false;
+    set (handles.loadPresetDataButton, 'Enable','on');
+    set (handles.generateDatasetButton, 'Enable','on');
+    set (handles.resetDatasetButton, 'Enable','on');
+    set (handles.deleteDatasetButton, 'Enable','on');
+        
+    guidata(hObject,handles);
 else
     %Should not reach this stage. elseif's used to be specific with options
     %available
@@ -489,7 +483,7 @@ elseif (handles.dataPresent == true)
     %%
     
     %Step is running, therefore play = false
-    handles.play = false;
+    handles.play = false;   
     
     %% initialise variables if this is the first iteration of step through
     if (handles.initialStepThroughComplete == false)
@@ -517,55 +511,40 @@ elseif (handles.dataPresent == true)
         guidata(hObject,handles);
     end
     %%
+    
+    if handles.maxBlockDatapoints == 0
+        handles.playCount = handles.playCount + 1;
+    end
 
     %if the data hasn't been classified correctly and there is still
     %time to compute the classification
         if (handles.correct == -1) && (handles.currentIteration < handles.maxIteration)
-
-            %% classify correctly, increment time, set min and max block size
-            %assume the data has been classified correctly
-                handles.correct = 1;
-                handles.currentIteration = handles.currentIteration + 1;
-                
-                %increment the "block" to consider the next set of
-                %datapoints
-                handles.minBlockDatapoints = handles.minBlockDatapoints + handles.numDatapointsToCycleThrough;
-                handles.maxBlockDatapoints = handles.maxBlockDatapoints + handles.numDatapointsToCycleThrough;
-
-                %if the max block size is greater than the total number of datapoints
-                %then reduce its size 
-                if handles.maxBlockDatapoints >= handles.inputSize
-                    handles.maxBlockDatapoints = handles.inputSize;
-                end
-            %%
             
-            %choose which threshold function to use
-            if (get(handles.stepToggle,'Value')== 1) 
+        %% classify correctly, increment time, set min and max block size
+        %assume the data has been classified correctly
+            handles.correct = 1;
+            handles.currentIteration = handles.currentIteration + 1;
 
-                weightedSum = handles.weights' * handles.inputData(1:3,:);
-                handles.actualOutput = sign(weightedSum);
-                error = handles.inputData(4,:) - handles.actualOutput;
-               
-                compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
-                    handles = guidata(hObject);
-                
-            elseif (get(handles.sigmoidToggle,'Value')==1)
-                
-                weightedSum = handles.weights' * handles.inputData(1:3,:);
-                handles.actualOutput = 1 ./ (1 + exp(-weightedSum));
-                error = handles.inputData(4,:) - handles.actualOutput;
-
-                %sigmoid squashes to [0,1] range. Need classes [-1,+1] so
-            	%if x < 0.5 then -1 else +1
-                handles.actualOutput(handles.actualOutput < 0.5) = -1;
-                handles.actualOutput(handles.actualOutput >= 0.5) = 1;
-                        
-                compareClassAndAdjustWeights(hObject, handles, weightedSum, error);
-                    handles = guidata(hObject);
-            else
-                %Should not reach this stage. elseif's used to be specific with options
-                %available
+            %increment the "block" to consider the next set of
+            %datapoints
+            handles.minBlockDatapoints = handles.minBlockDatapoints + handles.numDatapointsToCycleThrough;
+            handles.maxBlockDatapoints = handles.maxBlockDatapoints + handles.numDatapointsToCycleThrough;
+            
+            %if the max block size is greater than the total number of datapoints
+            %then reduce its size 
+            if handles.maxBlockDatapoints > handles.inputSize
+                handles.maxBlockDatapoints = handles.inputSize;
             end
+        %%
+            set(handles.currentIterationValueLabel,'String',handles.currentIteration);
+            set(handles.minmaxValueLabel,'String',sprintf('%d / %d', handles.minBlockDatapoints, handles.maxBlockDatapoints));
+            
+            calculateActualAndError(hObject,handles);
+                handles = guidata(hObject);
+
+            compareClassAndAdjustWeights(hObject, handles);
+                handles = guidata(hObject);
+            
         end
 
     %one threshold boundary is drawn for a user defined number of datapoints, the program
@@ -578,15 +557,21 @@ elseif (handles.dataPresent == true)
     if handles.maxBlockDatapoints >= handles.inputSize
         handles.maxBlockDatapoints = 0;
         handles.minBlockDatapoints = 1 - handles.numDatapointsToCycleThrough;
+        %handles.playCount = handles.playCount + 1;
     end
      
     %% change feedback colours to show the processing has completed
     set (handles.desiredOutputLabel,'BackgroundColor',handles.completedColour);
     set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
     
-    checkClassification(hObject,handles);
-        handles = guidata(hObject);
-        guidata(hObject,handles);
+    guidata(hObject,handles);
+        checkClassification(hObject,handles);
+            handles = guidata(hObject);
+        
+    set (handles.loadPresetDataButton, 'Enable','on');
+    set (handles.generateDatasetButton, 'Enable','on');
+    set (handles.resetDatasetButton, 'Enable','on');
+    set (handles.deleteDatasetButton, 'Enable','on');
     
 else
     %Should not reach this stage. elseif's used to be specific with options
@@ -595,7 +580,7 @@ end
 
 guidata(hObject,handles);
 
-function highlightDatapointAndSetLabels(hObject,handles,weightedSum,i)
+function highlightDatapointAndSetLabels(hObject,handles,i)
     
 global highlightedPoint;
 delete(highlightedPoint);
@@ -610,16 +595,13 @@ highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
 setInputLabels(hObject,handles,i);
 setWeightLabels(hObject,handles)
 setOutputLabels(hObject, handles, i);
-set (handles.weightedSumLabel,'String', weightedSum(i));
+set (handles.weightedSumLabel,'String', handles.weightedSum(i));
 
 guidata(hObject,handles);
 
 function stopButton_Callback(hObject, eventdata, handles)
-%     if handles.playRunning == true
-%         disp 'flag set to true'
-%         handles.stopFlag = true;
-%         guidata(hObject,handles);
-%     end
+
+set (handles.stopButton,'userdata',1);
 
 function displayThresholdBoundary(hObject, handles)
 
@@ -630,18 +612,20 @@ delete(thresholdBoundary);
 %DRAW THE NEW LINE
 %======================================================
 
-%x1a and x1b are the minimum and maximum (respectively)
+%IGNORE:x1a and x1b are the minimum and maximum (respectively)
 %points on the x1 axis. The boundary line is defined
 %on the x1 axis as slightly smaller and bigger than x1a
 %and x1b
     %min - 0.1 * min ==> min * (1 - 0.1) ==> min * 0.9
     %max + 0.1 * max ==> max * (1 + 0.1) ==> max * 1.1
     
-    %max (x1b) and min (x1a) have been swapped i.e. max(x1a) min(x1b) to
+    % max (x1b) and min (x1a) have been swapped i.e. max(x1a) min(x1b) to
     %try and get a better threshold boundary. Can be changed again at
     %anytime
-    x1a = max(handles.inputData(2,:))* 1.1;
-    x1b = min(handles.inputData(2,:))* 0.9;
+%===========================
+    
+    x1a = min(handles.inputData(2,:));
+    x1b = max(handles.inputData(2,:));
 
     %% create weights and display them on the GUI
     if isempty(handles.weights)
@@ -658,7 +642,7 @@ delete(thresholdBoundary);
 %the corresponding x2a and x2b points are calculated
     x2a = (biasWeight*1 + x1Weight*x1a) / -x2Weight;
     x2b = (biasWeight*1 + x1Weight*x1b) / -x2Weight;
-
+    
     %set (handles.networkGraph, 'XLim',[x1a x1b]);
     %set (handles.networkGraph, 'YLim',[min(handles.inputData(3,:))* 0.9 max(handles.inputData(3,:))* 1.1]); 
     
@@ -689,6 +673,23 @@ if filename ~= 0
     %check if file is empty and if data is valid
     if isempty(handles.inputData)
         msgbox('The file loaded is empty. Please load a non-empty file','Error: Empty file','error');
+        return;
+    elseif ~isnumeric(handles.inputData)
+        msgbox('Data provided must be numerical','Error: Data is not numerical','error');
+        return;
+    elseif any(any(isnan(handles.inputData)))
+        msgbox('Data contains Not a Number(NaN) elements','Error: Data contains NaN elements','error');
+        return;
+    elseif ~isreal(handles.inputData)
+        msgbox('Data must not contain imaginary/complex elements','Error: Data contains imaginary/complex elements','error');
+        return;
+    elseif size(handles.inputData,1) ~= 3
+        msgbox('Input Data must be a 3 row x N column matrix (3 x N) of [X1;X2;Desired Ouput] data','Error: Matrix size incorrect','error')
+        return;
+            %dataset may only contain [0,1] or [-1,1] class values.
+            %Any other values are invalid.
+    elseif ~xor(all(ismember(unique(handles.inputData(3,:)),[0 1])),all(ismember(unique(handles.inputData(3,:)),[-1 1])))
+        msgbox('Desired Output must have [0,1] or [-1,+1] values only','Error: Desired Output incorrect','error')
         return;
     else
         %TO DO: if data is valid
@@ -758,24 +759,33 @@ default_ans = {'50','50','5.5','5.0','0.5', '1.0',...
              '2.5', '3.0','0.3', '0.7'};
 
 %ERROR PROTECTION FOR INVALID DATA NEEDED
-promptData = inputdlg(prompt,title,1,default_ans);
- 
+promptData = str2double(inputdlg(prompt,title,1,default_ans));
+
 %%
 
  %if the user cancels, exit the function
  if isempty(promptData)
      return;
+%  elseif ~all(isnumeric(promptData))
+%      msgbox('Data entered must be numerical', 'Error: Data not numerical', 'error');
+%      return;
+ elseif any(isnan(promptData))
+     msgbox('Data entered contains Not a Number(NaN) elements. Data must be numerical','Error: Data not numerical','error');
+     return;
+ elseif any(~isreal(promptData))
+     msgbox('Data entered contains imaginary / complex elements','Error: Data contains imaginary / complex elements','error');
+     return;
  else
-     %if data is valid
         %% data entry
-        sampleAsize = str2double(promptData(1));
-        sampleBsize = str2double(promptData(2));
+        sampleAsize = promptData(1);
+        sampleBsize = promptData(2);
 
-        sampleAmean = [str2double(promptData(3)), str2double(promptData(4))];
-        sampleAstdDev = [str2double(promptData(5)), str2double(promptData(6))];
+        sampleAmean = [promptData(3), promptData(4)];
+        sampleAstdDev = [promptData(5), promptData(6)];
 
-        sampleBmean = [str2double(promptData(7)), str2double(promptData(8))];
-        sampleBstdDev = [str2double(promptData(9)), str2double(promptData(10))];
+        sampleBmean = [promptData(7), promptData(8)];
+        sampleBstdDev = [promptData(9), promptData(10)];
+
 
         handles.inputData  = [...
             normallyDistributedSample( sampleAsize, sampleAmean, sampleAstdDev )' ...
@@ -946,6 +956,15 @@ if ~isempty(handles.inputData)
         handles.inputSize = size(handles.inputData,2); 
 
         plotData(hObject,handles);
+        
+        %% [0,1] => [-1,+1]
+            %To make classification calculations easier, turn all desired outputs
+            %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
+            %as [0,1] graphically but mathematically they will be different.
+            if (ismember([0], handles.inputData(4,:)))
+                handles.inputData(4,:) = 2*handles.inputData(4,:) - 1;
+            end
+        %%
     
         %% unclassified, step through uninitialised
         handles.correct = -1;
@@ -963,7 +982,7 @@ if ~isempty(handles.inputData)
 
     guidata(hObject,handles);
 end
-function deleteDataset_Callback(hObject, eventdata, handles)
+function deleteDatasetButton_Callback(hObject, eventdata, handles)
 
     decision = questdlg('Delete all loaded and user defined data?', ...
         'Delete all data?', ...
@@ -989,8 +1008,12 @@ function disableEditBoxesAndThresholdToggles(hObject, eventdata, handles)
         set (handles.stepThroughButton, 'Enable','off');
     else
         set (handles.playButton, 'Enable','off');
-        set (handles.stopButton, 'Enable','off');
     end
+    
+        set (handles.loadPresetDataButton, 'Enable','off');
+        set (handles.generateDatasetButton, 'Enable','off');
+        set (handles.resetDatasetButton, 'Enable','off');
+        set (handles.deleteDatasetButton, 'Enable','off');
     
     set(handles.stepToggle,'Enable','Off');
     set(handles.sigmoidToggle,'Enable','Off');
@@ -1124,7 +1147,7 @@ function stepSliderDataGather(hObject,handles,i)
  
     handles.playHistory = [handles.playHistory handles.playCount];
     handles.iterationHistory = [handles.iterationHistory handles.currentIteration];
-    handles.datapointHistory = [handles.datapointHistory [handles.inputData(2,i);handles.inputData(3,i)]];
+    handles.datapointHistory = [handles.datapointHistory [handles.inputData(2:4,i); handles.actualOutput(i); handles.weightedSum(i)]];
     handles.weightHistory = [handles.weightHistory handles.weights];
     
     guidata(hObject,handles);
@@ -1151,11 +1174,16 @@ hold on;
 %handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
 highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
 
-% % set the data on the GUI
-% setInputLabels(hObject,handles,i);
-% setWeightLabels(hObject,handles)
-% setOutputLabels(hObject, handles, i);
-% set (handles.weightedSumLabel,'String', weightedSum(i));
+%set weight labels
+setWeightLabels(hObject,handles);
+%set input labels
+set (handles.x1InputLabel,'String',x1);
+set (handles.x2InputLabel,'String',x2); 
+%set output labels
+set (handles.desiredOutputLabel,'String',handles.datapointHistory(3,sliderValue));
+set (handles.actualOutputLabel,'String',handles.datapointHistory(4,sliderValue));
+
+set (handles.weightedSumLabel,'String', handles.datapointHistory(5,sliderValue));
 
 %set playThroughLabel = 'current / max' 
 tempValue = sprintf('%d / %d',handles.playHistory(sliderValue), max(handles.playHistory));
@@ -1196,6 +1224,7 @@ if (~(isnumeric(handles.learningRate)...
     set (handles.learningRateEdit, 'String', '1');
     handles.learningRate = 1;
 end
+guidata(hObject,handles);
             function learningRateEdit_CreateFcn(hObject, eventdata, handles)
 
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -1329,9 +1358,9 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 %==============
-
 function classBToggle_Callback(hObject, eventdata, handles)
-function classAToggle_Callback(hObject, eventdata, handles)  
+function classAToggle_Callback(hObject, eventdata, handles) 
+%==============
     
 function manualDatapointCreationCompleteButton_Callback(hObject, eventdata, handles)
 
@@ -1378,13 +1407,26 @@ function addDatapoints_Callback(hObject, eventdata, handles)
 if (get(handles.graphDatapointCreationToggle,'Value')==1)
 
     %% data entry
-    [X1,X2] = getpts(handles.networkGraph);
+        [X1,X2] = getpts(handles.networkGraph);
     %%
     
     %% get class
     if (get(handles.classAToggle,'Value')==1)
         tempDesiredOutput = 1;
     elseif (get(handles.classBToggle,'Value')==1)
+        
+%         %% [0,1] => [-1,+1]
+%         %To make classification calculations easier, turn all desired outputs
+%         %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
+%         %as [0,1] graphically but mathematically they will be different.
+%         if ~isempty(handles.inputData) && (ismember([0], handles.inputData(4,:))) 
+%             handles.inputData(4,:) = 2*handles.inputData(4,:) - 1;
+%         end
+%         %%
+%         
+        
+
+        
         tempDesiredOutput = -1;
     else
         %Should not reach this stage. elseif's used to be specific with
@@ -1406,7 +1448,6 @@ if (get(handles.graphDatapointCreationToggle,'Value')==1)
     %need to create a vector of 1's and multiply by the class (+1 or -1)
     %to create a row vector of +1 or -1 to append to the input data
     handles.inputData = [handles.inputData [ones(1,length(X1'));X1';X2';[ones(1,length(X1'))*tempDesiredOutput]]];
-    %handles.desiredOutput = [handles.desiredOutput [ones(1,length(X1'))*tempDesiredOutput]];
     handles.inputSize = size(handles.inputData,2);
     %%
 
@@ -1415,10 +1456,7 @@ if (get(handles.graphDatapointCreationToggle,'Value')==1)
     %%
 
     plotData(hObject,handles);
-    
-    %update the guidata after accessing the custom displayThreshold
-    %function
-    handles = guidata(hObject);
+        handles = guidata(hObject);
         
     guidata(hObject,handles);
 end
