@@ -151,6 +151,9 @@ function clearAllLabels(hObject,handles)
     set (handles.weightedSumLabel,'String','');
     set (handles.desiredOutputLabel,'String','');
     set (handles.actualOutputLabel,'String','');
+    
+    set (handles.minmaxValueLabel,'string','');
+    set (handles.currentIterationValueLabel,'string','');
 function setDefaultColours(hObject,handles)
 % make the colour selectors invisible to show they are not currently in use
 % create and initialise colour variables
@@ -207,8 +210,12 @@ set (handles.stepSlider,'SliderStep', [1/length(handles.weightHistory), 1/length
 %enable the play through and iteration counters
 set (handles.playThroughCountLabel,'Visible','on');
 set (handles.playThroughValueLabel,'Visible','on');
+    set (handles.playThroughValueLabel,'string', '');
 set (handles.iterationCountLabel,'Visible','on');
 set (handles.iterationValueLabel,'Visible','on');
+    set (handles.iterationValueLabel,'string', '');
+    
+%%%stepSlider_Callback(hObject, eventdata, handles);
 
 guidata(hObject,handles);
 function plotData(hObject,handles)
@@ -232,7 +239,6 @@ if ~isempty(handles.inputData)
 
     guidata(hObject,handles);
 end
-
 %====================
 function plotError(hObject,handles)
     
@@ -294,6 +300,7 @@ if handles.correct == -1
          end
 
         highlightDatapointAndSetLabels(hObject,handles,i)
+        %plotStepOrSigmoid(hObject,handles,i)
 
         %change weights of the datapoint if actual =/= desired
         if handles.actualOutput(1,i) ~= handles.inputData(4,i)
@@ -341,7 +348,10 @@ function calculateActualAndError(hObject,handles)
     guidata(hObject,handles);
 function checkClassification(hObject,handles)
 %enable slider if data is correctly classified
-if handles.correct == 1
+%if weightedHistory is empty then no changes have been made to the weights
+%meaning no slider data can be presented as the data has already been
+%classified
+if handles.correct == 1% && ~isempty(handles.weightedHistory)
     enableSlider(hObject,handles);
 end
 
@@ -363,27 +373,73 @@ if handles.correct == -1 && handles.currentIteration >= handles.maxIteration
 
         case 'No'  
             handles.correct = 1;
-            enableSlider(hObject,handles);
+            enableSlider(hObject,handles);          
     end
 end
 
 guidata(hObject,handles);
 function displayDataTable(hObject,handles)
     
+% if isempty(handles.originalDataForReset)
+%     tempInputData = handles.inputData;
+%     
+% end
+    
 %[-1,1] => [0,+1] make sure if user enters 0's as data they are shown as
 %0's in the data table
 if (ismember([0], handles.originalDataForReset(4,:)))
     tempInputData = handles.inputData;
     tempInputData(4,:) = (handles.inputData(4,:) + 1) ./ 2;
-    tempActualOutput = (handles.actualOutput + 1) ./ 2;
+    
+    if ~isempty(handles.actualOutput)
+        tempActualOutput = (handles.actualOutput + 1) ./ 2;
+    else
+        tempActualOutput = [];
+    end
 else
     tempInputData = handles.inputData;
-    tempActualOutput = handles.actualOutput;
+    
+    if ~isempty(handles.actualOutput)
+        tempActualOutput = handles.actualOutput;
+    else
+        tempActualOutput = [];
+    end
 end
     
 set (handles.dataTable,'Data',[tempInputData' tempActualOutput']);
-
-%====================
+%% function plotStepOrSigmoid(hObject,handles,i)
+% 
+%     xAxes = min(handles.weightedSum):0.1:max(handles.weightedSum)
+%     
+%     if get(handles.stepToggle,'Value')== 1
+%         hold on;
+%         plot (handles.stepSigmoidGraph,xAxes,2*(xAxes>handles.weights(1))-1)
+%         hold on;
+%        % plot (handles.stepSigmoidGraph,handles.weightedSum(i),handles.actualOutput(i))
+%         
+%     elseif get(handles.sigmoidToggle,'Value')== 1
+%         hold on;
+%         plot (handles.stepSigmoidGraph,xAxes,2*1./(1+exp(-x))-1)
+%         
+%     else
+%         
+%     end
+%     
+% %     xlim([min(handles.weightedSum) max(handles.weightedSum)]);
+% %     xlabel(handles.stepSigmoidGraph,'Weighted Sum');
+% %     ylabel(handles.stepSigmoidGrapg,'Actual Output');
+% %     
+% %     handles.sumSquaredError = [handles.sumSquaredError sum(handles.error.^2)];
+% % 
+% % set (handles.errorLabel,'String', sum(handles.error.^2));
+% % 
+% % hold on;
+% % plot (handles.errorGraph,handles.sumSquaredError(1,:),'x-');
+% 
+% % plot (handles.stepSigmoidGraph,x,2*1./(1+exp(-x))-1
+% % 
+% %  plot(x,2*(x>0.5)-1)
+% %====================
 
 function playButton_Callback(hObject, eventdata, handles)
 
@@ -466,7 +522,6 @@ else
     %Should not reach this stage. elseif's used to be specific with options
     %available
 end
-
 function stepThroughButton_Callback(hObject, eventdata, handles)
 
 if (handles.dataPresent == false)
@@ -579,7 +634,10 @@ else
 end
 
 guidata(hObject,handles);
+function stopButton_Callback(hObject, eventdata, handles)
 
+set (handles.stopButton,'userdata',1);
+%=======================
 function highlightDatapointAndSetLabels(hObject,handles,i)
     
 global highlightedPoint;
@@ -598,11 +656,6 @@ setOutputLabels(hObject, handles, i);
 set (handles.weightedSumLabel,'String', handles.weightedSum(i));
 
 guidata(hObject,handles);
-
-function stopButton_Callback(hObject, eventdata, handles)
-
-set (handles.stopButton,'userdata',1);
-
 function displayThresholdBoundary(hObject, handles)
 
 global thresholdBoundary;
@@ -649,7 +702,6 @@ delete(thresholdBoundary);
 %finally, draw the line on the axes
     thresholdBoundary = plot([x1a; x1b], [x2a,x2b], 'Color',handles.thresholdColour, 'linewidth',0.5);
     guidata(hObject,handles);
-
 %======================
 function loadPresetDataButton_Callback(hObject, eventdata, handles)
 
@@ -758,7 +810,6 @@ prompt{10} = 'Set Class B X2 Standard Deviation:';
 default_ans = {'50','50','5.5','5.0','0.5', '1.0',...
              '2.5', '3.0','0.3', '0.7'};
 
-%ERROR PROTECTION FOR INVALID DATA NEEDED
 promptData = str2double(inputdlg(prompt,title,1,default_ans));
 
 %%
@@ -910,7 +961,7 @@ function resetDatasetButton_Callback(hObject, eventdata, handles)
 if ~isempty(handles.inputData)
     
     %% keep user created data?
-    decision = questdlg('Would you like to keep all user created datapoints?', ...
+    decision = questdlg('Would you like to keep al l user created datapoints?', ...
         'Keep user created datapoints?', ...
         'Yes','No','No');
     
@@ -1142,7 +1193,6 @@ function defaultColoursButton_Callback(hObject, eventdata, handles)
 
 setDefaultColours(hObject,handles);
 %======================
-
 function stepSliderDataGather(hObject,handles,i)
  
     handles.playHistory = [handles.playHistory handles.playCount];
@@ -1150,8 +1200,7 @@ function stepSliderDataGather(hObject,handles,i)
     handles.datapointHistory = [handles.datapointHistory [handles.inputData(2:4,i); handles.actualOutput(i); handles.weightedSum(i)]];
     handles.weightHistory = [handles.weightHistory handles.weights];
     
-    guidata(hObject,handles);
-    
+    guidata(hObject,handles)
 function stepSlider_Callback(hObject, eventdata, handles)
     
 sliderValue = ceil(get(handles.stepSlider,'Value'));
@@ -1171,7 +1220,6 @@ delete(highlightedPoint);
 x1 = handles.datapointHistory(1,sliderValue);
 x2 = handles.datapointHistory(2,sliderValue);
 hold on;
-%handles.highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
 highlightedPoint = plot(x1,x2,'o','MarkerSize',15);
 
 %set weight labels
@@ -1189,7 +1237,6 @@ set (handles.weightedSumLabel,'String', handles.datapointHistory(5,sliderValue))
 tempValue = sprintf('%d / %d',handles.playHistory(sliderValue), max(handles.playHistory));
 set (handles.playThroughValueLabel,'string', tempValue);
 
-
 %find the maximum iteration array position for the current play through
 tempIterationMax = find(handles.playHistory == (handles.playHistory(sliderValue) + 1), 1, 'first') - 1;
 
@@ -1204,7 +1251,6 @@ tempValue = sprintf('%d / %d', handles.iterationHistory(sliderValue), handles.it
 set (handles.iterationValueLabel,'string', tempValue);
 
 guidata(hObject,handles);
-
             function stepSlider_CreateFcn(hObject, eventdata, handles)
 
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -1409,25 +1455,18 @@ if (get(handles.graphDatapointCreationToggle,'Value')==1)
     %% data entry
         [X1,X2] = getpts(handles.networkGraph);
     %%
-    
+    disp 'in add datapoint'
     %% get class
     if (get(handles.classAToggle,'Value')==1)
         tempDesiredOutput = 1;
     elseif (get(handles.classBToggle,'Value')==1)
-        
-%         %% [0,1] => [-1,+1]
-%         %To make classification calculations easier, turn all desired outputs
-%         %into [-1,+1] if they are in [0,1] form. The user will still see the classes 
-%         %as [0,1] graphically but mathematically they will be different.
-%         if ~isempty(handles.inputData) && (ismember([0], handles.inputData(4,:))) 
-%             handles.inputData(4,:) = 2*handles.inputData(4,:) - 1;
+        %if the data entered by the user has [0,1] desired outputs then the
+        %created data must also have the same desired output value
+%         if ~isempty(handles.inputData) && (ismember([0], handles.originalDataForReset(4,:))) 
+%             tempDesiredOutput = 0;
+%         else
+            tempDesiredOutput = -1;
 %         end
-%         %%
-%         
-        
-
-        
-        tempDesiredOutput = -1;
     else
         %Should not reach this stage. elseif's used to be specific with
         %options available
@@ -1448,10 +1487,12 @@ if (get(handles.graphDatapointCreationToggle,'Value')==1)
     %need to create a vector of 1's and multiply by the class (+1 or -1)
     %to create a row vector of +1 or -1 to append to the input data
     handles.inputData = [handles.inputData [ones(1,length(X1'));X1';X2';[ones(1,length(X1'))*tempDesiredOutput]]];
+    
     handles.inputSize = size(handles.inputData,2);
     %%
 
     %% show data in the GUI table
+    %displayDataTable(hObject,handles);
     set (handles.dataTable, 'Data', handles.inputData');
     %%
 
