@@ -22,7 +22,7 @@ function varargout = perceptronPage(varargin)
 
 % Edit the above text to modify the response to help perceptronPage
 
-% Last Modified by GUIDE v2.5 13-Dec-2016 14:42:56
+% Last Modified by GUIDE v2.5 01-Apr-2017 21:57:14
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -58,82 +58,41 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 
-set (handles.x1InputEdit,'String','0.1');
-set (handles.x2InputEdit,'String','0.3');
-set (handles.w0InputEdit,'String','0.3');
-set (handles.w1InputEdit,'String','3.1');
-set (handles.w2InputEdit,'String','0.5');
-set (handles.desiredOutputEdit,'String','1');
-set (handles.y0Output,'String','');
+%initialise handle variable and colours
+handles.inputData = [];
+handles.weights = [];
+handles.weightedSum = 0;
 
-set (handles.anpx1InputEdit,'String',get(handles.x1InputEdit,'String'));
-set (handles.anpx2InputEdit,'String',get(handles.x2InputEdit,'String'));
-set (handles.anpw0InputEdit,'String',get(handles.w0InputEdit,'String'));
-set (handles.anpw1InputEdit,'String',get(handles.w1InputEdit,'String'));
-set (handles.anpw2InputEdit,'String',get(handles.w2InputEdit,'String'));
-set (handles.anpdOutputEdit,'String',get(handles.desiredOutputEdit,'String'));
-set (handles.anpy0Output,'String',get(handles.y0Output,'String'));
-
-set (handles.notRunningColourChoice,'Visible','off');
-set (handles.processingColourChoice,'Visible','off');
-set (handles.completedColourChoice,'Visible','off');
+set (handles.weightedSumLabel,'String','');
+set (handles.actualOutputLabel,'String','');
+set (handles.errorLabel,'String','');
     
-set (handles.statusColourToggle,'String','Off');
+setDefaultColours(hObject,handles);
+    handles = guidata(hObject);
+    
+randInputButton_Callback(hObject, eventdata, handles);
+randWeightsButton_Callback(hObject, eventdata, handles);
 
-% %set (handles.x0Input,'Units','pixels');
-% %set (handles.x1InputEdit,'Units','pixels');
-% %set (handles.x2InputEdit,'Units','pixels');
-% 
-% %set (handles.w0InputEdit,'Units','pixels');
-% %set (handles.w1InputEdit,'Units','pixels');
-% %set (handles.w2InputEdit,'Units','pixels');
-% 
-% inputTempPosition = [(get(handles.x0Input,'Position')),...
-%                      get(handles.x1InputEdit,'Position'),...
-%                      get(handles.x2InputEdit,'Position')]
-% 
-% weightTempPosition = [get(handles.w0InputEdit,'Position'),...
-%                       get(handles.w1InputEdit,'Position'),...
-%                       get(handles.w2InputEdit,'Position')]
-%         
-% a = axes;
-% set(a, 'Visible', 'off');
-% %# Stretch the axes over the whole figure.
-% set(a, 'Position', [0, 0, 1, 1]);
-% %# Switch off autoscaling.
-% set(a, 'Xlim', [0, 1], 'YLim', [0, 1]);
-%            
-% noOfInputs = 3;
-% for index = 1:noOfInputs
-% 
-%     %(1+(index-1)*4) gets the x position of the current Position data
-%     %(3+(index-1)*4) gets the width to add to the x position to get the
-%     %final x position
-% ixPoint = inputTempPosition(1+(index-1)*4)+inputTempPosition(3+(index-1)*4)
-% 
-%     %the final y position is half way up from current y, so half the
-%     %height is added to current y
-% iyPoint = inputTempPosition(2+(index-1)*4)+(inputTempPosition(4+(index-1)*4)/2)
-%     
-% wxPoint = weightTempPosition(1+(index-1)*4)
-% wyPoint = weightTempPosition(2+(index-1)*4)+(weightTempPosition(4+(index-1)*4)/2)
-%     
-% line([ixPoint,iyPoint],[wxPoint,wyPoint],'Parent',a)
-% end
+%randomly set the desired output to 1 or -1
+set (handles.desiredOutputEdit,'String',2*(rand > 0.5) - 1);
 
-global notRunningColour;
-global greyColour;
-greyColour = [.80 .80 .80];
-notRunningColour = greyColour;
+guidata(hObject,handles);
+    
+function setDefaultColours(hObject,handles)
+% make the colour selectors invisible to show they are not currently in use
+% create and initialise colour variables
+handles.notRunningColour = [.8 .8 .8];
+handles.processingColour = [1 1 0];
+handles.completedColour = [0 1 0];
 
-global processingColour;
-processingColour = 'y';
+set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
+set (handles.notRunningPanel,'BackgroundColor',handles.notRunningColour);
+set (handles.processingPanel,'BackgroundColor',handles.processingColour);
+set (handles.completedPanel,'BackgroundColor',handles.completedColour);
 
-global completedColour;
-completedColour = 'g';
+set (handles.desiredOutputPanel,'BackgroundColor','w');
 
-set (handles.weightedSum,'BackgroundColor',notRunningColour);
-
+guidata(hObject,handles);
 
 % UIWAIT makes perceptronPage wait for user response (see UIRESUME)
 % uiwait(handles.perceptronPage);
@@ -149,632 +108,176 @@ function varargout = perceptronPage_OutputFcn(hObject, eventdata, handles)
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
-
-% --- Executes on button press in backToMainMenu.
 function backToMainMenu_Callback(hObject, eventdata, handles)
-% hObject    handle to backToMainMenu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+close(perceptronPage)
+mainMenu
 
+function playButton_Callback(hObject, eventdata, handles)
 
-% --- Executes on button press in helpButton.
-function helpButton_Callback(hObject, eventdata, handles)
-% hObject    handle to helpButton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
-% --- Executes on button press in runButton.
-function runButton_Callback(hObject, eventdata, handles)
-% hObject    handle to runButton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-global notRunningColour;
-global processingColour;
-global completedColour;
-
-set (handles.desiredOutputEdit,'BackgroundColor','w');
-set (handles.weightedSum,'BackgroundColor',processingColour);
+set (handles.desiredOutputPanel,'BackgroundColor','w');
+set (handles.weightedSumLabel,'BackgroundColor',handles.processingColour);
 pause(0.5);
 
-inputs = [str2double(get(handles.x0Input,'String'));...
-          str2double(get(handles.x1InputEdit,'String'));...
-          str2double(get(handles.x2InputEdit,'String'))];
-      
-weights = [str2double(get(handles.w0InputEdit,'String'));...
-           str2double(get(handles.w1InputEdit,'String'));...
-           str2double(get(handles.w2InputEdit,'String'))];
+handles.weights = [str2double(get(handles.w0Edit,'String'));...
+                    str2double(get(handles.w1Edit,'String'));...
+                    str2double(get(handles.w2Edit,'String'))];
 
-weightedSum = sum(inputs.*weights);
-set (handles.weightedSum,'String',weightedSum);
+handles.inputData = [1; str2double(get(handles.x1Edit,'String'));...
+                        str2double(get(handles.x2Edit,'String'));...
+                        str2double(get(handles.desiredOutputEdit,'String'))];
 
-if (get(handles.sigmoidToggle,'Value')==1) 
-    
-    sigmoidFunction = 1 / (1 + exp(-weightedSum));
-    set (handles.y0Output,'String',sigmoidFunction);
-    set (handles.anpy0Output,'String',get(handles.y0Output,'String'));
-    
-elseif (get(handles.stepToggle,'Value')==1)
-    
-    if weightedSum >= 0
-        set (handles.y0Output,'String','1');
-        set (handles.anpy0Output,'String',get(handles.y0Output,'String'));
-    else
-        set (handles.y0Output,'String','0');
-        set (handles.anpy0Output,'String',get(handles.y0Output,'String'));
-    end 
+if ~any(handles.weights) || ~any(handles.inputData)
+    return;
 end
 
-set (handles.desiredOutputEdit,'BackgroundColor',completedColour);
-set (handles.weightedSum,'BackgroundColor',notRunningColour);
+handles.weightedSum = handles.weights' * handles.inputData(1:3,1);
+
+if (get(handles.stepToggle,'Value')== 1)
+
+    handles.actualOutput = sign(handles.weightedSum);
+    handles.error = handles.inputData(4) - handles.actualOutput;
+    
+%     syms x
+%     fplot(heaviside((x-handles.weightedSum),[handles.weightedSum-5,handles.weightedSum+5])
+%     hold on;
+%     plot(handles.stepSigmoidGraph, handles.weightedSum, handles.actualOutput,'x')
+%     %fplot(heaviside(handles.weightedSum),[handles.weightedSum*0.5,handles.weightedSum*1.5]);
+%     
+% %     xAxes = [handles.weightedSum*0.5:0.1:handles.weightedSum*1.5];
+% %     
+% %     plot (handles.stepSigmoidGraph,xAxes,2*(xAxes>handles.weights(1))-1)
+% %     hold on;
+%     %plot (handles.stepSigmoidGraph,handles.weightedSum,handles.actualOutput)
+
+elseif (get(handles.sigmoidToggle,'Value')==1)
+
+    handles.actualOutput = 1 ./ (1 + exp(-handles.weightedSum));
+    handles.error = handles.inputData(4) - handles.actualOutput;
+
+    %sigmoid squashes to [0,1] range. Need classes [-1,+1] so
+    %if x < 0.5 then -1 else +1
+    handles.actualOutput(handles.actualOutput < 0.5) = -1;
+    handles.actualOutput(handles.actualOutput >= 0.5) = 1;
+
+else
+    %Should not reach this stage. elseif's used to be specific with
+    %options available
+end
+
+set (handles.weightedSumLabel,'String',handles.weightedSum);
+set (handles.actualOutputLabel,'String',handles.actualOutput);
+
+set (handles.errorLabel,'String',handles.error);
+
+set (handles.desiredOutputPanel,'BackgroundColor',handles.completedColour);
+set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
 
 function desiredOutputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to desiredOutputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of desiredOutputEdit as text
-%        str2double(get(hObject,'String')) returns contents of desiredOutputEdit as a double
-
-
-%desiredOutput must be a number
 desiredOutput = str2double(get(handles.desiredOutputEdit,'String'));
 
-%if desiredOutput is anything but 1 or 0 then the User
-%receives an error message and must reenter their value
-if (get(handles.sigmoidToggle,'Value')==1)
-    
-    set (handles.desiredOutputEdit,'String',desiredOutput)
-    set (handles.anpdOutputEdit,'String',get(handles.desiredOutputEdit,'String'))
-    
-elseif (get(handles.stepToggle,'Value')==1)
-    
-    if (desiredOutput == 1) | (desiredOutput == 0)
-    
-        %set desiredOutput to be displayed in all other desiredOutput edit
-        %boxes
-        set (handles.anpdOutputEdit,'String', desiredOutput);
-    else
-        errorMessage = msgbox('Desired Output must be equal to 1 or 0', 'Error', 'error');
-        %empty the desiredOutput edit box as a prompt to reenter a
-        %value
-        set (handles.desiredOutputEdit, 'String', '');
-    end
+if ~ismember(desiredOutput,[1,-1])
+    msgbox('Desired Output must be either 1 or -1', 'Error', 'error');
+    set (handles.desiredOutputEdit, 'String', '');
 end
+        function desiredOutputEdit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function x1Edit_Callback(hObject, eventdata, handles)
+x1Edit = str2double(get(handles.x1Edit,'String'));
 
+if ~(isnumeric(x1Edit) && ~isnan(x1Edit)&& isreal(x1Edit))
+    msgbox('x1 input must be a number (not NaN or imaginary)', 'Error', 'error');
+    set (handles.x1Edit, 'String', '');
+end
+        function x1Edit_CreateFcn(hObject, eventdata, handles)
 
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function x2Edit_Callback(hObject, eventdata, handles)
+x2Edit = str2double(get(handles.x2Edit,'String'));
 
+if ~(isnumeric(x2Edit) && ~isnan(x2Edit) && isreal(x2Edit))
+    msgbox('x2 input must be a number (not NaN or imaginary)', 'Error', 'error');
+    set (handles.x2Edit, 'String', '');
+end
+        function x2Edit_CreateFcn(hObject, eventdata, handles)
 
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function w0Edit_Callback(hObject, eventdata, handles)
+w0Edit = str2double(get(handles.w0Edit,'String'));
 
-% --- Executes during object creation, after setting all properties.
-function desiredOutputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to desiredOutputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
+if ~(isnumeric(w0Edit) && ~isnan(w0Edit) && isreal(w0Edit))
+    msgbox('w0 input must be a number (not NaN or imaginary)', 'Error', 'error');
+    set (handles.w0Edit, 'String', '');
+end
+        function w0Edit_CreateFcn(hObject, eventdata, handles)
 
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function w1Edit_Callback(hObject, eventdata, handles)
+w1Edit = str2double(get(handles.w1Edit,'String'));
+
+if ~(isnumeric(w1Edit) && ~isnan(w1Edit) && isreal(w1Edit))
+    msgbox('w1 input must be a number (not NaN or imaginary)', 'Error', 'error');
+    set (handles.w1Edit, 'String', '');
+end
+        function w1Edit_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function w2Edit_Callback(hObject, eventdata, handles)
+
+w2Edit = str2double(get(handles.w2Edit,'String'));
+
+if ~(isnumeric(w2Edit) && ~isnan(w2Edit) && isreal(w2Edit))
+    msgbox('w2 input must be a number (not NaN or imaginary)', 'Error', 'error');
+    set (handles.w2Edit, 'String', '');
+end
+        function w2Edit_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
-
-
-function x1InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to x1InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of x1InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of x1InputEdit as a double
-
-x1Input = str2double(get(handles.x1InputEdit,'String'));
-
-if isnumeric(x1Input)...
-   & ~isnan(x1Input)...
-   & isreal(x1Input)
-    set (handles.anpx1InputEdit,'String', x1Input);
-else
-    errorMessage = msgbox('x1 Input must be numerical', 'Error', 'error');
-    set (handles.x1InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function x1InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to x1InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function x2InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to x2InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of x2InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of x2InputEdit as a double
-
-x2Input = str2double(get(handles.x2InputEdit,'String'));
-
-if isnumeric(x2Input)...
-   && ~isnan(x2Input)...
-   & isreal(x2Input)
-    set (handles.anpx2InputEdit,'String', x2Input);
-else
-    errorMessage = msgbox('x2 Input must be numerical', 'Error', 'error');
-    set (handles.x2InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function x2InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to x2InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function w0InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to w0InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of w0InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of w0InputEdit as a double
-w0Input = str2double(get(handles.w0InputEdit,'String'));
-
-if isnumeric(w0Input)...
-   & ~isnan(w0Input)...
-   & isreal(w0Input)
-    set (handles.anpw0InputEdit,'String', w0Input);
-else
-    errorMessage = msgbox('w0 Input must be numerical', 'Error', 'error');
-    set (handles.w0InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function w0InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to w0InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function w1InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to w1InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of w1InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of w1InputEdit as a double
-w1Input = str2double(get(handles.w1InputEdit,'String'));
-
-if isnumeric(w1Input)...
-   & ~isnan(w1Input)...
-   & isreal(w1Input)
-    set (handles.anpw1InputEdit,'String', w1Input);
-else
-    errorMessage = msgbox('w1 Input must be numerical', 'Error', 'error');
-    set (handles.w1InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function w1InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to w1InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function w2InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to w2InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of w2InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of w2InputEdit as a double
-w2Input = str2double(get(handles.w2InputEdit,'String'));
-
-if isnumeric(w2Input)...
-   & ~isnan(w2Input)...
-   & isreal(w2Input)
-    set (handles.anpw2InputEdit,'String', w2Input);
-else
-    errorMessage = msgbox('w2 Input must be numerical', 'Error', 'error');
-    set (handles.w2InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function w2InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to w2InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function anpx1InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to anpx1InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of anpx1InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of anpx1InputEdit as a double
-x1Input = str2double(get(handles.anpx1InputEdit,'String'));
-
-if isnumeric(x1Input)...
-   & ~isnan(x1Input)...
-   & isreal(x1Input)
-    set (handles.x1InputEdit,'String', x1Input);
-else
-    errorMessage = msgbox('x1 Input must be numerical', 'Error', 'error');
-    set (handles.anpx1InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function anpx1InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to anpx1InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function anpx2InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to anpx2InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of anpx2InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of anpx2InputEdit as a double
-x2Input = str2double(get(handles.anpx2InputEdit,'String'));
-
-if isnumeric(x2Input)...
-   & ~isnan(x2Input)...
-   & isreal(x2Input)
-    set (handles.x2InputEdit,'String', x2Input);
-else
-    errorMessage = msgbox('x2 Input must be numerical', 'Error', 'error');
-    set (handles.anpx2InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function anpx2InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to anpx2InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function anpw0InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to anpw0InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of anpw0InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of anpw0InputEdit as a double
-w0Input = str2double(get(handles.anpw0InputEdit,'String'));
-
-if isnumeric(w0Input)...
-   & ~isnan(w0Input)...
-   & isreal(w0Input)
-    set (handles.w0InputEdit,'String', w0Input);
-else
-    errorMessage = msgbox('w0 Input must be numerical', 'Error', 'error');
-    set (handles.anpw0InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function anpw0InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to anpw0InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function anpw1InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to anpw1InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of anpw1InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of anpw1InputEdit as a double
-w1Input = str2double(get(handles.anpw1InputEdit,'String'));
-
-if isnumeric(w1Input)...
-   & ~isnan(w1Input)...
-   & isreal(w1Input)
-    set (handles.w1InputEdit,'String', w1Input);
-else
-    errorMessage = msgbox('w1 Input must be numerical', 'Error', 'error');
-    set (handles.anpw1InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function anpw1InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to anpw1InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function anpw2InputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to anpw2InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of anpw2InputEdit as text
-%        str2double(get(hObject,'String')) returns contents of anpw2InputEdit as a double
-w2Input = str2double(get(handles.anpw2InputEdit,'String'));
-
-if isnumeric(w2Input)...
-   & ~isnan(w2Input)...
-   & isreal(w2Input)
-    set (handles.w2InputEdit,'String', w2Input);
-else
-    errorMessage = msgbox('w2 Input must be numerical', 'Error', 'error');
-    set (handles.anpw2InputEdit, 'String', '');
-end
-
-% --- Executes during object creation, after setting all properties.
-function anpw2InputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to anpw2InputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function anpy0Output_Callback(hObject, eventdata, handles)
-% hObject    handle to anpy0Output (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of anpy0Output as text
-%        str2double(get(hObject,'String')) returns contents of anpy0Output as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function anpy0Output_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to anpy0Output (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function anpdOutputEdit_Callback(hObject, eventdata, handles)
-% hObject    handle to anpdOutputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of anpdOutputEdit as text
-%        str2double(get(hObject,'String')) returns contents of anpdOutputEdit as a double
-
-desiredOutput = str2double(get(handles.anpdOutputEdit,'String'));
-
-if (desiredOutput == 1) | (desiredOutput == 0)
-    set (handles.desiredOutputEdit,'String', desiredOutput);
-else
-    errorMessage = msgbox('Desired Output must be equal to 1 or 0', 'Error', 'error');
-    set (handles.anpdOutputEdit, 'String', '');
-end
-
-
-% --- Executes during object creation, after setting all properties.
-function anpdOutputEdit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to anpdOutputEdit (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-% --- Executes on button press in statusColourToggle.
-function statusColourToggle_Callback(hObject, eventdata, handles)
-% hObject    handle to statusColourToggle (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of statusColourToggle
-global notRunningColour;
-global processingColour;
-global completedColour;
-global greyColour;
-
-if (get(handles.statusColourToggle,'Value')==1)
-    set (handles.notRunningColourChoice,'Visible','on');
-    set (handles.processingColourChoice,'Visible','on');
-    set (handles.completedColourChoice,'Visible','on');
-    
-    set (handles.statusColourToggle,'String','On');
-    
-elseif (get (handles.statusColourToggle,'Value')==0)
-    set (handles.notRunningColourChoice,'Visible','off');
-    set (handles.processingColourChoice,'Visible','off');
-    set (handles.completedColourChoice,'Visible','off');
-    
-    set (handles.statusColourToggle,'String','Off');
-    
-    notRunningColour = greyColour;
-    processingColour = 'y';
-    completedColour = 'g';
-    
-    set (handles.weightedSum,'BackgroundColor',notRunningColour);
-    set (handles.desiredOutputEdit,'BackgroundColor','w');
-    
-end
-
-% --- Executes on selection change in notRunningColourList.
 function notRunningColourChoice_Callback(hObject, eventdata, handles)
-% hObject    handle to notRunningColourList (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+handles.notRunningColour=uisetcolor;
 
-% Hints: contents = cellstr(get(hObject,'String')) returns notRunningColourList contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from notRunningColourList
-global notRunningColour;
-
-notRunningColour=uisetcolor;
-set (handles.weightedSum,'BackgroundColor',notRunningColour);
-set (handles.notRunningColourChoice,'BackgroundColor',notRunningColour);
-
-% --- Executes during object creation, after setting all properties.
-function notRunningColourChoice_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to notRunningColourList (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: listbox controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+if handles.notRunningColour == 0
+     return;
 end
 
-
-% --- Executes on selection change in processingColourList.
+set (handles.notRunningPanel,'BackgroundColor',handles.notRunningColour);
+guidata(hObject,handles);
 function processingColourChoice_Callback(hObject, eventdata, handles)
-% hObject    handle to processingColourList (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+handles.processingColour=uisetcolor;
 
-% Hints: contents = cellstr(get(hObject,'String')) returns processingColourList contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from processingColourList
-global processingColour;
-
-processingColour=uisetcolor;
-%set (handles.weightedSum,'BackgroundColor',processingColour);
-set (handles.processingColourChoice,'BackgroundColor',processingColour);
-
-% --- Executes during object creation, after setting all properties.
-function processingColourChoice_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to processingColourList (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: listbox controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+if handles.processingColour == 0
+     return;
 end
 
-
-% --- Executes on selection change in completedColourList.
+set (handles.processingPanel,'BackgroundColor',handles.processingColour);
+guidata(hObject,handles);
 function completedColourChoice_Callback(hObject, eventdata, handles)
-% hObject    handle to completedColourList (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+handles.completedColour=uisetcolor;
 
-% Hints: contents = cellstr(get(hObject,'String')) returns completedColourList contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from completedColourList
-global completedColour;
-
-completedColour=uisetcolor;
-set (handles.desiredOutputEdit,'BackgroundColor',completedColour);
-set (handles.completedColourChoice,'BackgroundColor',completedColour);
-
-% --- Executes during object creation, after setting all properties.
-function completedColourChoice_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to completedColourList (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: listbox controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+if handles.completedColour == 0
+     return;
 end
 
-
-% --- Executes on button press in randInputButton.
+set (handles.completedPanel,'BackgroundColor',handles.completedColour);
+guidata(hObject,handles);
+function defaultColoursButton_Callback(hObject, eventdata, handles)
+setDefaultColours(hObject,handles);
+%======================
 function randInputButton_Callback(hObject, eventdata, handles)
-% hObject    handle to randInputButton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-set (handles.x1InputEdit,'String',randn);
-set (handles.x2InputEdit,'String',randn);
-
-set (handles.anpx1InputEdit,'String',get(handles.x1InputEdit,'String'));
-set (handles.anpx2InputEdit,'String',get(handles.x2InputEdit,'String'));
-
-% --- Executes on button press in randWeightsButton.
+set (handles.x1Edit,'String',randn);
+set (handles.x2Edit,'String',randn);
 function randWeightsButton_Callback(hObject, eventdata, handles)
-% hObject    handle to randWeightsButton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-set (handles.w0InputEdit,'String',randn);
-set (handles.w1InputEdit,'String',randn);
-set (handles.w2InputEdit,'String',randn);
-
-set (handles.anpw0InputEdit,'String',get(handles.w0InputEdit,'String'));
-set (handles.anpw1InputEdit,'String',get(handles.w1InputEdit,'String'));
-set (handles.anpw2InputEdit,'String',get(handles.w2InputEdit,'String'));
+set (handles.w0Edit,'String',randn);
+set (handles.w1Edit,'String',randn);
+set (handles.w2Edit,'String',randn);

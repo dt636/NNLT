@@ -22,7 +22,7 @@ function varargout = perceptronLearningPage(varargin)
 
 % Edit the above text to modify the response to help perceptronLearningPage
 
-% Last Modified by GUIDE v2.5 25-Mar-2017 15:28:02
+% Last Modified by GUIDE v2.5 01-Apr-2017 23:43:56
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -174,7 +174,6 @@ set (handles.classAPanel,'BackgroundColor',handles.classAColour);
 set (handles.classBPanel,'BackgroundColor',handles.classBColour);
 set (handles.thresholdPanel,'BackgroundColor',handles.thresholdColour);
 
-set (handles.weightedSumLabel,'BackgroundColor',handles.notRunningColour);
 set (handles.desiredOutputLabel,'BackgroundColor','w');
 
 plotData(hObject,handles);
@@ -440,6 +439,10 @@ set (handles.dataTable,'Data',[tempInputData' tempActualOutput']);
 % % 
 % %  plot(x,2*(x>0.5)-1)
 % %====================
+
+function backToMainMenu_Callback(hObject, eventdata, handles)
+close(perceptronLearningPage)
+mainMenu
 
 function playButton_Callback(hObject, eventdata, handles)
 
