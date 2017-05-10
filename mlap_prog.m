@@ -8,8 +8,10 @@ elseif taskNum == '2'
     TaskTwo(data)
 elseif taskNum == '3'
     TaskThree(data)
+elseif taskNum == '4'
+    TaskFour(data)
 else
-    disp 'Task number =/= 1, 2 or 3'
+    disp 'Task number =/= 1, 2, 3 or 4'
 end
 
 end
@@ -143,10 +145,99 @@ stringData = tempStringData{1};
 %initialise the number of episodes
 episodes = 0;
 
+for i = 1:numel(stringData)
+    
+    %skip if the current input is a space i.e. empty
+    if isequal(stringData{i},'')
+        continue
+    else
+        
+        %if this is the first line or if the line before i is empty then this is the start of a new episode
+        if (i==1) || isequal(stringData{i-1},'')
+            episodes = episodes + 1;
+            %reset observation index
+            ObsIndex = 1;
+        end
+        
+        %extract the numbers as strings from the stringData on line i
+        extractedNums = regexp(stringData{i}, '-?\d*','match');
+        
+        %turn the emission string into a number
+        em = str2double(extractedNums{1});
+
+        %add offset to make it easier to index emission columns
+        %%%%%%%
+        Obs(episodes,ObsIndex) = em+2;
+            ObsIndex = ObsIndex + 1;
+    end
+end
+
+%set empty elements to NaN and readjust the matrix to original values
+Obs(Obs==0)=NaN;
+
 N = 16; %number of states
 P = ones(N, 1)/N; %initial probability
 A = ones(N, N)/N; %transition probability matrix
 B = ones(N,3)/3; %emission probability matrix
+
+for episode = 1:episodes
+    
+    %extract the current episode observation data, excluding NaN values
+    Y = Obs(episode,:);
+    Y(isnan(Y))=[];
+    
+    maxt = length(Y);
+
+    %alpha forward procedure
+        alpha = zeros(N ,maxt);
+        alpha(:,1) = P.*B(:,Y(1));
+        for t = 2:maxt
+            for state = 1:N
+                alpha(state,t)=sum((alpha(:,t-1).*A(:,state)))*B(state,Y(t));
+            end
+        end
+
+    %beta backward procedure
+        beta = ones(N, maxt);
+         for t = maxt-1:-1:1
+            for state = 1:N
+                 beta(state,t) = sum(A(state,:)'.*beta(:,t+1).*B(:,Y(t+1)));
+            end
+         end
+     
+     %gamma procedure
+         gamma =  zeros(N, maxt);
+         for t = 1:maxt
+             gamma(:,t) = alpha(:,t) .* beta(:,t);
+             gamma(:,t) = gamma(:,t) / sum(gamma(:,t));
+         end
+     
+     %xi procedure
+     
+        xi = zeros(N,N,maxt-1);
+        for t = 1:maxt-1
+            xi(:,:,t) = A .*alpha(:,t)' * beta(:,t+1) .*B(:,t+1);
+            xi(:,:,t) = xi(:,:,t) / sum(sum(xi(:,:,t)));
+        end
+
+    P = gamma(:,1)
+
+    %A=sum(xi)/sum(gamma)
+    %B=sum(gamma)*Y(t)==v(t)/sum(gamma)
+end 
+
+end
+
+
+function TaskThree(data)
+fileID = fopen(data);
+tempStringData = textscan(fileID,'%s','delimiter','\n');
+fclose(fileID);
+ 
+stringData = tempStringData{1};
+
+%initialise the number of episodes
+episodes = 0;
 
 for i = 1:numel(stringData)
     
@@ -169,6 +260,7 @@ for i = 1:numel(stringData)
         em = str2double(extractedNums{1});
 
         %add offset to so only extra matrix 0's get turned to NaN
+        %%%%%%%
         Obs(episodes,ObsIndex) = em+2;
             ObsIndex = ObsIndex + 1;
     end
@@ -176,124 +268,68 @@ end
 
 %set empty elements to NaN and readjust the matrix to original values
 Obs(Obs==0)=NaN;
-Obs=Obs-2;
-
-for episode = 1:episodes
-    
-    %extract the current episode observation data, excluding NaN values
-    Y = Obs(episode,:);
-    Y(isnan(Y))=[];
-    
-    maxTime = length(Y);
-    
-    
-    
-    
-%     oldA = A;
-%     oldB = B;
-%     
-%     A = ones(N, N)/N; %transition probability matrix
-%     B = ones(N, 3)/3; %emission probability matrix
-%     
-%     %create forward and backward matrices
-%     prob =  zeros(N, maxTime + 1);
-%     alpha = zeros(N ,maxTime + 1);
-%     beta = zeros(N, maxTime + 1);
-%     
-%     %forward
-%     alpha(:,1) = 1/N;
-%     
-%     for i = 1:maxTime
-%         alpha(:,i+1) = alpha(:,i) * A * diag(B(:,Y(i)));
-%         alpha(:,i+1) = alpha(:,i+1) / sum(alpha(:,i+1));
-%     end
-%     
-%     %backward
-%     
-%     beta(:,0) 
-%     
-%     for i = maxTime:-1:0
-%         beta(:,i-1) = (A * diag(B(:,Y(i-1))) * beta(:,i)')';
-%         beta(:,i-1) = beta(:,i-1) / sum(beta(:,i-1));
-%     end
-%     
-%     prob = alpha * beta;
-%     prob = prob / sum(prob,1);
-    
-
-end 
 
 
-end
+for run = 1:10
+
+    N = 16; %number of states
+    
+    P = rand(N,1);
+    P = P./sum(P);
+    
+    A = rand(N,N);
+    A = A./sum(A);
+    
+    B = rand(N,3);
+    B = B./sum(B);
 
 
-% prob = 0;
-%     for i=1:N
-%         prob = prob + alpha(lambda, Y, T, i);        
-%     end
-%     
-%     
-%     for i=1:lambda.N
-%        prob = prob + P(i) * beta(lambda, Y, 1, i) ...
-%                   * B(i, Y(1));
-%         end   
+    for episode = 1:episodes
 
-function [p] =  P(lambda, Y, forward)
-    T = numel(Y);
-    p = 0;
-    if forward == true
-        % solve using forward probabilities
-        for i=1:lambda.N
-            p = p + alpha(lambda, Y, T, i);        
+        %extract the current episode observation data, excluding NaN values
+        Y = Obs(episode,:);
+        Y(isnan(Y))=[];
+
+        maxt = length(Y);
+
+        %alpha forward procedure
+        alpha = zeros(N ,maxt);
+        alpha(:,1) = P.*B(:,Y(1));
+        for t = 2:maxt
+                %alpha(:,t) = (alpha(:,t-1).*A(:,:))*B(:,Y(t));
+            for state = 1:N
+                alpha(state,t)=sum((alpha(:,t-1).*A(:,state)))*B(state,Y(t));
+            end
         end
-    else
-        % solve using backward probabilities
-        for i=1:lambda.N
-            p = p + lambda.pi(i) * beta(lambda, Y, 1, i) ...
-                  * lambda.B(i, Y(1));
-        end       
-    end
-end
 
-
-function [prob] = alpha(A,B,P,Y,currTime,i)
-
-    if currTime < 1 || currTime > numel(Y)
-
-    end
-
-    if currTime == 1
-        prob = P(i,1)*B(i,Y(1));
-        return;
-    end
-
-    prob = 0;
-
-    for j=1:length(P)
-        prob = prob + alpha(A,B,P,Y,currTime,i) * A(j,i) * B(i, Y(currTime));
-    end
-end
-
-function [prob] = beta(A,B,P,Y,currTime,i)
-
-    if currTime < 1 || currTime > numel(Y)
-
-    end
-
-    if currTime == numel(Y)
-        prob = 1;
-        return;
-    end
-
-    prob = 0;
-
-    for j = 1:length(P)
-        prob = prob + A(i,j) * B(j, Y(currTime+1)) * beta(A,B,P,Y,currTime+1,j);
-    end
+        %beta backward procedure
+        beta = ones(N, maxt);
+         for t = maxt-1:-1:1
+            for state = 1:N
+                 beta(state,t) = sum(A(state,:)'.*beta(:,t+1).*B(:,Y(t+1)));
+            end
+         end
+     
+        %gamma procedure
+         gamma =  zeros(N, maxt);
+         for t = 1:maxt
+             gamma(:,t) = alpha(:,t) .* beta(:,t);
+             gamma(:,t) = gamma(:,t) / sum(gamma(:,t));
+         end
+     
+        %xi procedure
+        xi = zeros(N,N,maxt-1);
+        for t = 1:maxt-1
+            xi(:,:,t) = (A(:,:) .*(alpha(:,t)' * (beta(:,t+1) .*B(:,t+1))));
+            xi(:,:,t) = xi(:,:,t) / sum(sum(xi(:,:,t)));
+        end
+        
+    end 
 
 end
 
+end
 
-
-
-
+function TaskFour(data)
+    disp('Not implemented');
+end
